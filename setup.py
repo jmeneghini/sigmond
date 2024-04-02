@@ -34,9 +34,7 @@ class CMakeBuild(build_ext_orig):
             self.build_extension(ext)
 
     def build_extension(self, ext):
-        new_lib = os.path.basename(self.get_ext_fullpath(ext.name))
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
-        # extdir = os.path.join(os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name))),"sigmond")
 
         cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
                       '-DPYTHON_EXECUTABLE=' + sys.executable,

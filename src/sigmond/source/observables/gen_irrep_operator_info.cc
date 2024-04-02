@@ -132,7 +132,7 @@ void GenIrrepOperatorInfo::assign_from_string(const string& opstring)
     momentum_from_string(mom_str,mom);
     encode(isostr,strangeness,irrep,irrepRow,mom,name,index);}}
  catch(const std::exception& errmsg){
-    throw(std::invalid_argument(string("Invalid GenIrrepOperatorInfo string: ")+opstring));}
+    throw(std::invalid_argument(string("Invalid GenIrrepOperatorInfo string: ")+opstring+"; "+errmsg.what()));}
 }
 
 
