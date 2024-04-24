@@ -7,10 +7,12 @@ Currently it only supports two-point correlation functions.
 
 - c++ compiler
 - fortran compiler
-- python
+- python 3
+- make
 - cmake
-- [lapack](https://netlib.org/lapack/) -> script `install_dependencies.sh` will install this
-- [hdf5](https://portal.hdfgroup.org/) version 1.10 -> script `install_dependencies.sh` will install this
+- [lapack](https://netlib.org/lapack/) -> script `install_dependencies.sh` will install this, but requires the packages listed above
+- [hdf5](https://portal.hdfgroup.org/) version 1.10 -> script `install_dependencies.sh` will install this, but requires the packages
+listed above
 - python library: pybind11
 
 ## Instructions for pip install ## 
