@@ -2649,6 +2649,7 @@ void TwoExpConspiracy::guessInitialParamValues(
                      vector<double>& fitparams) const
 {
  //throw if priors are not set
+ for(uint i=0;i<m_nparams;i++) fitparams[i] = 0.0;
  initializeParametersWithPriors(fitparams);
 }
 
@@ -2761,21 +2762,22 @@ void DegTwoExpConspiracy::guessInitialParamValues(
                      const vector<double>& data, const vector<uint>& tvals,
                      vector<double>& fitparams) const
 {
- double tasymfrac=0.33;
- vector<uint> early_tvals;
- vector<double> early_data;
- if(tvals.size()>=5){
-   for(uint i=0;i<5;i++){
-      early_tvals.push_back(tvals[i]);
-      early_data.push_back(data[i]);
-   }
- }
- double dummy;
- //prob not this?
- TimeForwardTwoExponential::get_two_exp_guess(early_tvals,early_data,fitparams[0],fitparams[1],dummy,fitparams[5],tasymfrac);
- TimeForwardTwoExponential::get_two_exp_guess(tvals,data,fitparams[0],fitparams[1],fitparams[2],fitparams[3],tasymfrac);
- fitparams[4] = 0.0;
- fitparams[6] = 0.0;
+//  double tasymfrac=0.33;
+//  vector<uint> early_tvals;
+//  vector<double> early_data;
+//  if(tvals.size()>=5){
+//    for(uint i=0;i<5;i++){
+//       early_tvals.push_back(tvals[i]);
+//       early_data.push_back(data[i]);
+//    }
+//  }
+//  double dummy;
+//  //prob not this?
+//  TimeForwardTwoExponential::get_two_exp_guess(early_tvals,early_data,fitparams[0],fitparams[1],dummy,fitparams[5],tasymfrac);
+//  TimeForwardTwoExponential::get_two_exp_guess(tvals,data,fitparams[0],fitparams[1],fitparams[2],fitparams[3],tasymfrac);
+//  fitparams[4] = 0.0;
+//  fitparams[6] = 0.0;
+ for(uint i=0;i<m_nparams;i++) fitparams[i] = 0.0;
  initializeParametersWithPriors(fitparams);
 }
 

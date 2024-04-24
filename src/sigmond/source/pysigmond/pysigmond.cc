@@ -252,15 +252,6 @@ public:
       );
   }
   
-  // void output_tag(XMLHandler& xmlout) const override {
-  //     PYBIND11_OVERRIDE_PURE(
-  //         void, /* Return type */
-  //         TemporalCorrelatorModel,      /* Parent class */
-  //         output_tag,          /* Name of function in C++ (must match Python name) */
-  //         xmlout      /* Argument(s) */
-  //     );
-  // }
-  
   void setFitInfo(const std::vector<MCObsInfo>& fitparams_info, const std::vector<MCEstimate>& fitparams, 
                             uint fit_tmin,uint fit_tmax, bool show_approach, uint meff_timestep, 
                             double chisq_dof, double qual, TCorrFitInfo& fitinfo) const override {
@@ -273,14 +264,47 @@ public:
       );
   }
 
-};
+  std::vector<double> guessInitialParamValuesPy(const std::vector<double>& data, 
+                                                const std::vector<uint>& tvals) const override {
+      PYBIND11_OVERRIDE_PURE(
+          std::vector<double>, /* Return type */
+          TemporalCorrelatorModel,      /* Parent class */
+          guessInitialParamValuesPy,          /* Name of function in C++ (must match Python name) */
+          data, tvals      /* Argument(s) */
+      );
+  }
 
-// TemporalCorrelatorModel * create_tcorr_model(const string& modeltype, uint in_Tperiod)
-// {
-//  TemporalCorrelatorModel *mptr;
-//  create_tcorr_model(modeltype, in_Tperiod, mptr);
-//  return mptr;
-// }
+  std::vector<double> evalGradientPy(const std::vector<double>& fitparams, 
+                                    double tval) const override {
+      PYBIND11_OVERRIDE_PURE(
+          std::vector<double>, /* Return type */
+          TemporalCorrelatorModel,      /* Parent class */
+          evalGradientPy,          /* Name of function in C++ (must match Python name) */
+          fitparams, tval      /* Argument(s) */
+      );
+  }
+};
+// class PyChiSquare : public ChiSquare{
+// public:
+//   ~PyChiSquare() override = default;
+//   using ChiSquare::ChiSquare;
+//   vector<double> evalResiduals(const vector<double>& fitparams) const override { 
+//       PYBIND11_OVERRIDE(
+//           vector<double>, /* Return type */
+//           ChiSquare,      /* Parent class */
+//           evalResiduals,          /* Name of function in C++ (must match Python name) */
+//           fitparams     /* Argument(s) */
+//       );
+//   }
+//   double evalChiSquarePy(const std::vector<double>& residuals) const override { 
+//       PYBIND11_OVERRIDE(
+//           double, /* Return type */
+//           ChiSquare,      /* Parent class */
+//           evalChiSquarePy,          /* Name of function in C++ (must match Python name) */
+//           residuals     /* Argument(s) */
+//       );
+//   }
+// };
   
 PYBIND11_MODULE(sigmond, m) {
   // py::register_exception<sigmond>(module, "PyExp");
@@ -314,8 +338,8 @@ PYBIND11_MODULE(sigmond, m) {
   m.def("doReconstructEnergyBySamplings", (void (*) (MCObsHandler&, const MCObsInfo&, const list<pair<MCObsInfo,double> >&, const MCObsInfo&)) &doReconstructEnergyBySamplings);
   m.def("doReconstructAmplitudeBySamplings", (void (*) (MCObsHandler&, const MCObsInfo&, const list<MCObsInfo>&, const MCObsInfo&)) &doReconstructAmplitudeBySamplings);
   m.def("doEnergyDifferenceBySamplings", (void (*) (MCObsHandler&, const MCObsInfo&, const list<pair<MCObsInfo,double> >&, const MCObsInfo&)) &doEnergyDifferenceBySamplings);
-  // m.def("create_tcorr_model", (void (*) (const string&, uint, TemporalCorrelatorModel&)) &create_tcorr_model);
-  // m.def("create_tcorr_model", (TemporalCorrelatorModel * (*) (const string&, uint)) &create_tcorr_model);
+  m.def("getChiSquareFitQuality", (double (*) (unsigned int, double)) &getChiSquareFitQuality);
+  m.def("doCorrelatorNormalzation", (void (*) (MCObsHandler&, CorrelatorInfo, uint, uint, uint, const OperatorInfo&)) &doCorrelatorNormalzation);
 
   // Info classes
   py::class_<MCEnsembleInfo>(m, "MCEnsembleInfo")
@@ -604,6 +628,7 @@ PYBIND11_MODULE(sigmond, m) {
 
   py::class_<CorrelatorMatrixInfo>(m, "CorrelatorMatrixInfo")
     .def(py::init<const set<OperatorInfo> &, bool, bool>())
+    .def(py::init<const vector<OperatorInfo> &, bool, bool>())
     .def("long_xml", [](const CorrelatorMatrixInfo &a) {
         py::module ET = py::module::import("xml.etree.ElementTree");
         return ET.attr("fromstring")(a.output(true)); })
@@ -632,6 +657,9 @@ PYBIND11_MODULE(sigmond, m) {
   py::class_<ChiSquareMinimizerInfo>(m, "MinimizerInfo")
     .def(py::init<>())
     .def(py::init<char, double, double, int, char>())
+    .def("getChiSquareRelativeTolerance", &ChiSquareMinimizerInfo::getChiSquareRelativeTolerance)
+    .def("getParameterRelativeTolerance", &ChiSquareMinimizerInfo::getParameterRelativeTolerance)
+    .def("getMaximumIterations", &ChiSquareMinimizerInfo::getMaximumIterations)
     .def("xml", [](const ChiSquareMinimizerInfo &a) {
         py::module ET = py::module::import("xml.etree.ElementTree");
         return ET.attr("fromstring")(a.output()); });
@@ -702,7 +730,8 @@ PYBIND11_MODULE(sigmond, m) {
     .def("eraseData", &MCObsHandler::eraseData)
     .def("eraseSamplings", &MCObsHandler::eraseSamplings)
     .def("setToUnCorrelated", &MCObsHandler::setToUnCorrelated)
-    .def("setToCorrelated", &MCObsHandler::setToCorrelated);
+    .def("setToCorrelated", &MCObsHandler::setToCorrelated)
+    .def("getCovariance", (double (MCObsHandler::*)(const MCObsInfo&,const MCObsInfo&)) &MCObsHandler::getCovariance);
 
   py::enum_<WriteMode>(m, "WriteMode")
     .value("Protect", WriteMode::Protect)
@@ -808,12 +837,16 @@ PYBIND11_MODULE(sigmond, m) {
     .def("computeZMagnitudesSquared", &Pivot::computeZMagnitudesSquared)
     .def("computeZMagnitudesSquaredPython", &Pivot::computeZMagnitudesSquaredPython)
     .def("getOperators", &Pivot::getOperators)
+    .def("getOperatorsPython", &Pivot::getOperatorsPython)
     .def("getTauZ", &Pivot::getTauZ);
 
-  // py::class_<ChiSquare, ChiSquarePy>(m,"ChiSquare");
+//   py::class_<ChiSquare, PyChiSquare>(m,"ChiSquare")
+//     .def("evalResiduals", (vector<double> (ChiSquare::*) (const vector<double>&) const)  &ChiSquare::evalResiduals);
     
   py::class_<RealTemporalCorrelatorFit>(m,"RealTemporalCorrelatorFit")
     .def(py::init<XMLHandler &, MCObsHandler &, int>());
+    // .def("evalResiduals", (vector<double> (RealTemporalCorrelatorFit::*) (const vector<double>&) const)  &RealTemporalCorrelatorFit::evalResiduals);
+    // .def("evalChiSquare", &RealTemporalCorrelatorFit::evalChiSquare);
 
   py::class_<NSimRealTemporalCorrelatorFit>(m,"NSimRealTemporalCorrelatorFit")
     .def(py::init<XMLHandler &, MCObsHandler &, int>());
@@ -825,6 +858,8 @@ PYBIND11_MODULE(sigmond, m) {
     .def("eval", (&TemporalCorrelatorModel::eval))
     .def("evalGradient", &TemporalCorrelatorModel::evalGradient)
     .def("guessInitialParamValues", &TemporalCorrelatorModel::guessInitialParamValues)
+    .def("guessInitialParamValuesPy", &TemporalCorrelatorModel::guessInitialParamValuesPy)
+    .def("evalGradientPy", &TemporalCorrelatorModel::evalGradientPy)
     .def("output_tag", &TemporalCorrelatorModel::output_tag)
     .def("setFitInfo", &TemporalCorrelatorModel::setFitInfo);
 

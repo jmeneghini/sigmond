@@ -1463,6 +1463,7 @@ void SinglePivotOfCorrMat::computeZMagnitudesSquared(Matrix<MCEstimate>& ZMagSq,
       for (uint opindex=0;opindex<nops;opindex++){
          obskey.resetObsIndex(opindex);
          all_zmag_keys.insert(obskey);
+         if(level) wmode = WriteMode::Update;
       }
       m_moh->writeSamplingValuesToFile(all_zmag_keys, outfile, truck, wmode, file_format);
     }

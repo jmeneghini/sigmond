@@ -303,11 +303,18 @@ class RollingPivotOfCorrMat : public TaskHandlerData
 
    RollingPivotOfCorrMat(TaskHandler& taskhandler, ArgsHandler& xmlin,
                         LogHelper& xmlout);
+   RollingPivotOfCorrMat(MCObsHandler* moh, ArgsHandler& xmlin,
+                        LogHelper& xmlout);
    ~RollingPivotOfCorrMat();
 
    static RollingPivotOfCorrMat* initiateRollingPivot(
                    TaskHandler& taskhandler, ArgsHandler& xmlin,
                    LogHelper& xmlout, bool& keep_in_task_map);
+
+   static RollingPivotOfCorrMat* initiateRollingPivot(
+                   MCObsHandler* moh, ArgsHandler& xmlin,
+                   LogHelper& xmlout);
+
    uint getTauN() const
     {return m_tauN;}
 
@@ -353,7 +360,8 @@ class RollingPivotOfCorrMat : public TaskHandlerData
 
          //  get |Z(opindex,level)|^2 for all operators for all levels
 
-   void computeZMagnitudesSquared(Matrix<MCEstimate>& ZMagSq);
+   void computeZMagnitudesSquared(Matrix<MCEstimate>& ZMagSq, std::string outfile = "", WriteMode wmode = Protect,
+                                  char file_format='D', std::string obsname="Level");
    
    std::string type(){return "RollingPivotOfCorrMat";}
 
@@ -373,7 +381,7 @@ class RollingPivotOfCorrMat : public TaskHandlerData
                      bool checkCommonNullSpace);
    void do_vev_rotation();
    void do_corr_rotation(uint timeval, bool diagonly);
-   void write_to_file(const std::string& fname, bool overwrite);
+   void write_to_file(const std::string& fname, bool overwrite, char file_format);
    
    
 

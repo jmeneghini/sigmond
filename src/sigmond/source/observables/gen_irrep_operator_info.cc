@@ -157,7 +157,7 @@ void GenIrrepOperatorInfo::encode(const string& isostr, int strangeness, const s
  momcode<<=momj_bits; momcode|=abs(mom[1]);
  momcode<<=1; momcode|=(mom[2]<0)?1:0;
  momcode<<=momj_bits; momcode|=abs(mom[2]);
- const uint maxlength=24;
+ const uint maxlength=50;
  if (name.length()>maxlength){
     throw(std::invalid_argument("GIOperator name too long"));}
  if (index>=32768){

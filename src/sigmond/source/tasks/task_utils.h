@@ -1162,6 +1162,8 @@ void doCorrelatorInteractionRatioBySamplings(MCObsHandler& moh,
                 uint tmin, uint tmax, const OperatorInfo& ratio_op, 
                 std::set<MCObsInfo>& obskeys, bool erase_orig);
 
+void doCorrelatorNormalzation(MCObsHandler& moh, CorrelatorInfo orig_corr,
+                uint tN, uint tmin, uint tmax, const OperatorInfo& norm_op);
 
 void doReconstructEnergyBySamplings(MCObsHandler& moh, const MCObsInfo& energy_diff_key,
 			            const MCObsInfo& anisotropy_key, 

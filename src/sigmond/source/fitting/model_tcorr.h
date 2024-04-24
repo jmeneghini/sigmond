@@ -181,6 +181,20 @@ class TemporalCorrelatorModel
         evaluate(fitparams, tval, value);
         return value;
     }
+    
+    virtual std::vector<double> guessInitialParamValuesPy(const std::vector<double>& data, const std::vector<uint>& tvals) const{
+        std::vector<double> fitparam;
+        fitparam.resize(m_nparams);
+        guessInitialParamValues(data,tvals,fitparam);
+        return fitparam;
+    }   
+    
+    virtual std::vector<double> evalGradientPy(const std::vector<double>& fitparams, double tval) const{
+        std::vector<double> grad;
+        grad.resize(m_nparams);
+        evalGradient(fitparams, tval, grad);
+        return grad;
+    }
 
  protected:
 

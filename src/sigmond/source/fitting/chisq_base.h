@@ -259,6 +259,11 @@ class ChiSquare
                           RMatrix& gradients) const;
 
     double evalChiSquare(const std::vector<double>& residuals) const;
+
+    virtual std::vector<double> evalResiduals(const std::vector<double>& fitparams) const;
+    virtual double evalChiSquarePy(const std::vector<double>& residuals) const{
+        return evalChiSquare(residuals);
+    }
    
 
 };

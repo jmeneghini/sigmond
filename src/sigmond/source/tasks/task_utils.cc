@@ -3217,6 +3217,27 @@ void doCorrelatorInteractionRatioBySamplings(MCObsHandler& moh,
   catch(const std::exception& xp){}}
 }
 
+void doCorrelatorNormalzation(MCObsHandler& moh, CorrelatorInfo orig_corr,
+                uint tN, uint tmin, uint tmax, const OperatorInfo& norm_op)
+{
+ bool herm=true;
+ bool overwrite=true;
+ CorrelatorAtTimeInfo origcorr(orig_corr,0,herm,false);
+ CorrelatorAtTimeInfo normcorr(orig_corr,tN,herm,false);
+ CorrelatorAtTimeInfo resultcorr(norm_op,norm_op,0,herm,false);
+ MCObsInfo normkey(normcorr);
+ for (uint t=tmin;t<=tmax;t++){
+    origcorr.resetTimeSeparation(t);
+    resultcorr.resetTimeSeparation(t);
+    MCObsInfo intkey(origcorr);
+    MCObsInfo ratiokey(resultcorr);
+    for (moh.begin();!moh.end();++moh){
+       double ratioval=moh.getCurrentSamplingValue(intkey);
+       double normval=moh.getCurrentSamplingValue(normkey);
+       moh.putCurrentSamplingValue(ratiokey,ratioval/normval,overwrite);
+    }
+ }
+}
 
 void doReconstructEnergyBySamplings(MCObsHandler& moh, const MCObsInfo& energy_diff_key,
 			            const MCObsInfo& anisotropy_key, 
