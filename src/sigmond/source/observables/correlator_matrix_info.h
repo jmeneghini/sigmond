@@ -72,6 +72,12 @@ class CorrelatorMatrixInfo
    CorrelatorMatrixInfo(const std::set<OperatorInfo>& inops, bool herm, bool subvev)
        : m_opinfos(inops), m_hermitian(herm), m_vevsubt(subvev), m_current(0) {}
 
+   CorrelatorMatrixInfo(const std::vector<OperatorInfo>& inops, bool herm, bool subvev)
+       : m_hermitian(herm), m_vevsubt(subvev), m_current(0) {
+            std::set<OperatorInfo> temp(inops.begin(),inops.end());
+            m_opinfos = temp;
+       }
+
    CorrelatorMatrixInfo(const CorrelatorMatrixInfo& cor) : m_opinfos(cor.m_opinfos),
          m_hermitian(cor.m_hermitian), m_vevsubt(cor.m_vevsubt), m_current(0) {}
 

@@ -67,7 +67,24 @@ void doChiSquareFitting(ChiSquare& chisq_ref,
    for (uint p=0;p<nparams;++p)
       m_obs->putCurrentSamplingValue(param_infos[p],params_sample[p]);}
 
+ 
+ vector<double> prior_deviations;
  bestfit_params.resize(nparams);
+ for (uint p=0;p<nparams;++p){
+    bestfit_params[p]=m_obs->getEstimate(param_infos[p],mode);
+    if(chisq_ref.isFitPrior(p)){
+      Prior p_prior = chisq_ref.getFitPrior(p);
+      double value = bestfit_params[p].getFullEstimate();
+      double deviation = abs(p_prior.mean()-value)/p_prior.error();
+      if(deviation>1.75) throw(std::invalid_argument(string("Resulting fit parameter "+make_string(p)
+                            +" is out of prior boundaries. Set to "+make_string(p_prior.mean())+"("
+                            +make_string(p_prior.error())+"), but result was "+make_string(value))));
+      prior_deviations.push_back(deviation);
+    } else {
+      prior_deviations.push_back(0.0);
+    }
+ }
+
  XMLHandler xmlres("BestFitResult");
  xmlres.put_child("NumberObservables",make_string(chisq_ref.getNumberOfObervables()));
  xmlres.put_child("NumberParameters",make_string(nparams));
@@ -80,13 +97,12 @@ void doChiSquareFitting(ChiSquare& chisq_ref,
     XMLHandler xmlpi;
     param_infos[p].output(xmlpi);
     xmlp.put_child(xmlpi);
-    bestfit_params[p]=m_obs->getEstimate(param_infos[p],mode);
     XMLHandler xmlfp;
     bestfit_params[p].output(xmlfp);
     if(chisq_ref.isFitPrior(p)){
-      Prior p_prior = chisq_ref.getFitPrior(p);
-      double value = bestfit_params[p].getFullEstimate();
-      xmlfp.put_child("PriorDeviation",make_string(abs(p_prior.mean()-value)/p_prior.error()));
+    //   Prior p_prior = chisq_ref.getFitPrior(p);
+    //   double value = bestfit_params[p].getFullEstimate();
+      xmlfp.put_child("PriorDeviation",make_string(prior_deviations[p]));
     }
 
     xmlp.put_child(xmlfp);

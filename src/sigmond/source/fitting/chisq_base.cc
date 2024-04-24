@@ -138,7 +138,13 @@ void ChiSquare::evalResiduals(const vector<double>& fitparams,
  }
 }
 
-
+vector<double> ChiSquare::evalResiduals(const vector<double>& fitparams) const
+{
+    std::vector<double> residuals;
+    residuals.resize(m_nobs+m_nparams);
+    evalResiduals(fitparams,residuals);
+    return residuals;
+} 
 
 void ChiSquare::evalResGradients(const vector<double>& fitparams,
                                  RMatrix& gradients) const

@@ -1,6 +1,7 @@
 #include "single_pivot.h"
 #include "rolling_pivot.h"
 #include <stdexcept>
+#include <vector>
 //manages the pivoter for the task_rotate_corrs
 
 class Pivot{
@@ -29,8 +30,7 @@ class Pivot{
                 this_pivoter_sp=SinglePivotOfCorrMat::initiateSinglePivot(moh,xmlin,xmlout);
             }
             else if(rotate_type=="RollingPivot"){
-                throw(std::invalid_argument("Pivot::initiatePivot is not set up for RollingPivot."));
-                // this_pivoter_rp=RollingPivotOfCorrMat::initiateRollingPivot(moh,xmlin,xmlout,keep_in_task_map);
+                this_pivoter_rp=RollingPivotOfCorrMat::initiateRollingPivot(moh,xmlin,xmlout);
             }
         }
         void checkInitiate(LogHelper& xmlout, XMLHandler& xml_out){
@@ -107,17 +107,25 @@ class Pivot{
         void computeZMagnitudesSquared(Matrix<MCEstimate>& ZMagSq, std::string outfile = "", WriteMode wmode = Protect,
                                   char file_format='D', std::string obsname="Level"){
             if(rotate_type=="SinglePivot") this_pivoter_sp->computeZMagnitudesSquared(ZMagSq, outfile, wmode, file_format, obsname);
-            else if(rotate_type=="RollingPivot") this_pivoter_rp->computeZMagnitudesSquared(ZMagSq);
+            else if(rotate_type=="RollingPivot") this_pivoter_rp->computeZMagnitudesSquared(ZMagSq, outfile, wmode, file_format, obsname);
         }
         Matrix<MCEstimate> computeZMagnitudesSquaredPython(std::string outfile = "", WriteMode wmode = Protect,
                                   char file_format='D', std::string obsname="Level"){
             Matrix<MCEstimate> ZMagSq;
             if(rotate_type=="SinglePivot") this_pivoter_sp->computeZMagnitudesSquared(ZMagSq, outfile, wmode, file_format, obsname);
-            else if(rotate_type=="RollingPivot") this_pivoter_rp->computeZMagnitudesSquared(ZMagSq);
+            else if(rotate_type=="RollingPivot") this_pivoter_rp->computeZMagnitudesSquared(ZMagSq, outfile, wmode, file_format, obsname);
             return ZMagSq;
         }
         const std::set<OperatorInfo>& getOperators(){
             if(rotate_type=="SinglePivot"){return this_pivoter_sp->getOperators();}
             else if(rotate_type=="RollingPivot"){return this_pivoter_rp->getOperators();}
+        }
+        const std::vector<OperatorInfo> getOperatorsPython(){
+            std::set<OperatorInfo> temp;
+            if(rotate_type=="SinglePivot"){temp = this_pivoter_sp->getOperators();}
+            else if(rotate_type=="RollingPivot"){temp = this_pivoter_rp->getOperators();}
+            std::vector<OperatorInfo> result;
+            for(std::set<OperatorInfo>::iterator i=temp.begin();i!=temp.end();i++) result.push_back(*i);
+            return result;
         }
 };

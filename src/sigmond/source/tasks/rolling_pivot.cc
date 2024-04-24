@@ -26,7 +26,25 @@ RollingPivotOfCorrMat::RollingPivotOfCorrMat(TaskHandler& taskhandler, ArgsHandl
           +string(errmsg.what())));}
 }
 
-
+RollingPivotOfCorrMat::RollingPivotOfCorrMat(MCObsHandler* moh, ArgsHandler& xml_in,
+                                             LogHelper& xmlout)
+                        : m_moh(moh), m_cormat_info(0), 
+                          m_rotated_info(0), m_diag(0), m_refstart(0), m_Zmat(0)
+{
+ try{
+    ArgsHandler xmlin(xml_in,"RollingPivotInitiate"); 
+    if (xmlin.queryTag("ReadPivotFromFile")){
+       ArgsHandler xmlf(xmlin,"ReadPivotFromFile");
+       initiate_from_file(xmlf,xmlout);
+//        throw(std::invalid_argument(string("RollingPivotOfCorrMat is not set up to be read from file.")));
+    }
+    else
+       initiate_new(xmlin,xmlout);}
+ catch(const std::exception& errmsg){
+    clear();
+    throw(std::invalid_argument(string("Constructing RollingPivotOfCorrMat failed: ")
+          +string(errmsg.what())));}
+}
 
 void RollingPivotOfCorrMat::initiate_new(ArgsHandler& xmlin, LogHelper& xmlout)
 {
@@ -65,7 +83,7 @@ void RollingPivotOfCorrMat::initiate_new(ArgsHandler& xmlin, LogHelper& xmlout)
            +string(errmsg.what())));}
  if (xmlin.queryTag("WritePivotToFile")){
     ArgsHandler xmlf(xmlin,"WritePivotToFile");
-    string fname(xmlf.getName("PivotFileName"));
+    string fname(xmlf.getString("PivotFileName"));
     bool overwrite=xmlf.getBool("Overwrite");
     string fformat("default"); char ffmt='D';
     xmlf.getOptionalString("FileFormat",fformat);
@@ -73,7 +91,7 @@ void RollingPivotOfCorrMat::initiate_new(ArgsHandler& xmlin, LogHelper& xmlout)
     else if (fformat=="hdf5") ffmt='H';
     else if (fformat=="default") ffmt='D';
     else throw(std::invalid_argument("<FileFormat> must be ftr or hdf5 or default in doCorrMatrixRotation"));
-    write_to_file(fname,overwrite); //add other formats //writes pivot at tauZ to file
+    write_to_file(fname,overwrite,ffmt); //writes pivot at tauZ to file
     xmlout.putEcho(xmlf);
  }
 }
@@ -83,7 +101,7 @@ void RollingPivotOfCorrMat::initiate_from_file(ArgsHandler& xmlin, LogHelper& xm
 {
  xmlout.reset("InitiatedFromFile");
  try{
- string fname(xmlin.getName("PivotFileName"));
+ string fname(xmlin.getString("PivotFileName"));
  IOMap<UIntKey,RArrayBuf> iom;
  string filetypeid("Sigmond--RollingPivotFile");
  string header;
@@ -137,13 +155,13 @@ void RollingPivotOfCorrMat::initiate_from_file(ArgsHandler& xmlin, LogHelper& xm
 
 
 
-void RollingPivotOfCorrMat::write_to_file(const string& filename, bool overwrite)
+void RollingPivotOfCorrMat::write_to_file(const string& filename, bool overwrite, char file_format)
 {
  string fname=tidyString(filename);
  if (fname.empty()){
     throw(std::invalid_argument("Error in RollingPivotWriteToFile:: Empty file name"));}
- if ((fileExists(fname))&&(!overwrite)){
-    throw(std::invalid_argument("Error in RollingPivotWriteToFile:: File exists and cannot overwrite"));}
+//  if ((fileExists(fname))&&(!overwrite)){
+//     throw(std::invalid_argument("Error in RollingPivotWriteToFile:: File exists and cannot overwrite"));}
  XMLHandler xmlout("RollingPivotOfCorrMat");
  XMLHandler xmlt; m_cormat_info->output(xmlt,false);
  XMLHandler xmlmatdef("MatrixDefinition");
@@ -164,7 +182,11 @@ void RollingPivotOfCorrMat::write_to_file(const string& filename, bool overwrite
 
  IOMap<UIntKey,RArrayBuf> iom;
  string filetypeid("Sigmond--RollingPivotFile");   
- iom.openNew(fname,filetypeid,xmlout.str(),false,'N',false,overwrite);
+ if (fileExists(fname)&&!overwrite){
+   std::string header = xmlout.str();
+   iom.openUpdate(fname,filetypeid,header,'N',false);
+ }
+ else iom.openNew(fname,filetypeid,xmlout.str(),false,'N',false,overwrite,file_format);
  if (!iom.isOpen())
      throw(std::invalid_argument("File could not be opened for output"));
  RArrayBuf buffer;
@@ -501,6 +523,23 @@ RollingPivotOfCorrMat* RollingPivotOfCorrMat::initiateRollingPivot(
 }
 
 
+RollingPivotOfCorrMat* RollingPivotOfCorrMat::initiateRollingPivot(
+                   MCObsHandler* moh, ArgsHandler& xmlin,
+                   LogHelper& xmlout)
+{
+ ArgsHandler xmlpiv(xmlin,"RollingPivotInitiate");
+ LogHelper xmlt;
+ xmlout.reset("RollingPivot");
+ RollingPivotOfCorrMat* pivoter=0;
+ try{
+    pivoter=new RollingPivotOfCorrMat(moh,xmlpiv,xmlt);
+    xmlout.putItem(xmlt);}
+ catch(const std::exception& errmsg){
+    xmlout.putItem(xmlt); 
+    throw(std::invalid_argument(string("Error in RollingPivotOfCorrMat::initiating new: ")
+          +string(errmsg.what())));}
+ return pivoter;
+}
 
 
 void RollingPivotOfCorrMat::doRotation(uint tmin, uint tmax, LogHelper& xmllog)
@@ -1340,7 +1379,8 @@ try{
 
   //  get |Z(opindex,level)|^2 for all operators for all levels
 
-void RollingPivotOfCorrMat::computeZMagnitudesSquared(Matrix<MCEstimate>& ZMagSq)
+void RollingPivotOfCorrMat::computeZMagnitudesSquared(Matrix<MCEstimate>& ZMagSq, string outfile, WriteMode wmode,
+                                  char file_format, std::string obsname)
 {  
  if (!allAmplitudeFitInfoAvailable())
     throw(std::runtime_error("Not all Amplitude fit info available to compute ZMagSquares"));
@@ -1352,21 +1392,34 @@ void RollingPivotOfCorrMat::computeZMagnitudesSquared(Matrix<MCEstimate>& ZMagSq
    //  each diagonal element of rotated correlator matrix is
    //  fit to  A * exp(-E_n t )    then   Zrotsq = std::abs(A)
 
+ try{
  ZMagSq.resize(nops,nlevels);   //  final results put in here
  bool overwrite=true;
- MCObsInfo obskey("TempZMagSq",0);   // temporary key
  for (uint level=0;level<nlevels;level++){
+    MCObsInfo obskey(obsname+to_string(level),0);   // temporary key
+    set<MCObsInfo> all_zmag_keys;
     MCObsInfo Zrotfitkey=getAmplitudeKey(level);
+    // uint origlevel=get_orig_level(level);
     for (m_moh->begin();!m_moh->end();++(*m_moh)){   // loop over resamplings
        double Zrotsq=std::abs(m_moh->getCurrentSamplingValue(Zrotfitkey));
        for (uint opindex=0;opindex<nops;opindex++){
           obskey.resetObsIndex(opindex);
           m_moh->putCurrentSamplingValue(obskey,
                   sqr((*m_Zmat)(opindex,level))*Zrotsq,overwrite);}}
+    if(!outfile.empty()){
+      XMLHandler truck("Dummy");
+      for (uint opindex=0;opindex<nops;opindex++){
+         obskey.resetObsIndex(opindex);
+         all_zmag_keys.insert(obskey);
+      }
+      m_moh->writeSamplingValuesToFile(all_zmag_keys, outfile, truck, wmode, file_format);
+    }
     for (uint opindex=0;opindex<nops;opindex++){
        obskey.resetObsIndex(opindex);
        ZMagSq(opindex,level)=m_moh->getEstimate(obskey);
        m_moh->eraseSamplings(obskey); }}
+ }catch(const std::exception& xp){
+    throw(std::runtime_error(string("Not all fit amplitudes known so cannot compute Z factors: ")+xp.what()));}
 }
 
  // ******************************************************************
