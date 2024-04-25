@@ -18,7 +18,6 @@ find_package(pybind11 REQUIRED
 
 include_directories("${Python_INCLUDE_DIRS}")
 
-
 include_directories("${PROJECT_BINARY_DIR}")
 include_directories("${PROJECT_SOURCE_DIR}/tasks")
 include_directories("${PROJECT_SOURCE_DIR}/observables")
@@ -42,8 +41,6 @@ add_subdirectory(plotting)
 add_subdirectory(tasks)
 
 #link_libraries(tasks_libs data_handling_lib analysis_libs fitting_libs observables_libs plotting_libs)
-target_link_libraries(tasks -llapack)
-target_link_libraries(data_handling -lhdf5)
 
 set_target_properties(analysis PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/sigmond)
 set_target_properties(data_handling PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/sigmond)
@@ -51,6 +48,7 @@ set_target_properties(fitting PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRAR
 set_target_properties(observables PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/sigmond)
 set_target_properties(plotting PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/sigmond)
 set_target_properties(tasks PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/sigmond)
+
 
 pybind11_add_module(sigmond pysigmond/pysigmond.cc)
 
@@ -61,5 +59,10 @@ target_link_libraries(sigmond PUBLIC tasks )
 target_link_libraries(sigmond PUBLIC fitting )
 target_link_libraries(sigmond PUBLIC observables )
 target_link_libraries(sigmond PUBLIC plotting)
+
+target_link_libraries(tasks -llapack)
+target_link_libraries(tasks -lblas)
+target_link_libraries(tasks -lgfortran)
+target_link_libraries(data_handling -lhdf5)
 
 target_compile_definitions(sigmond PRIVATE VERSION_INFO=${VERSION_INFO})
