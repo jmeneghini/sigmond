@@ -72,7 +72,7 @@ void Prior::resample(){ //filter the random numbers and then filter back, get th
 
     if(m_type==1) { //log normal here ==> transform inputs here?
       // m_obs->putCurrentSamplingValue(m_prior,m_mean);
-      std::default_random_engine generator;
+      std::default_random_engine generator(m_seed);
 
       std::lognormal_distribution<double> distribution(/*mean=*/m_mean, /*stddev=*/m_error);
       double randomNumber;
@@ -82,12 +82,12 @@ void Prior::resample(){ //filter the random numbers and then filter back, get th
       }
     } else {
       m_obs->putCurrentSamplingValue(m_prior,m_mean);
-      std::default_random_engine generator;
+      std::default_random_engine generator(m_seed);
       std::normal_distribution<double> distribution(/*mean=*/m_mean, /*stddev=*/m_error);
       double randomNumber;
       for (m_obs->setSamplingNext();!m_obs->end();++(*m_obs)){
          randomNumber = distribution(generator);
-         while( (randomNumber<(m_mean-2.0*m_error)) && (randomNumber>(m_mean+2.0*m_error)) ){
+         while( (randomNumber<(m_mean-m_random_range_factor*m_error)) || (randomNumber>(m_mean+m_random_range_factor*m_error)) ){
              randomNumber = distribution(generator); //add limitations to the number?
          }
          m_obs->putCurrentSamplingValue(m_prior,randomNumber);
@@ -106,16 +106,17 @@ void Prior::resample(){ //filter the random numbers and then filter back, get th
 }
 
 void Prior::resample_current_index() const{
+    m_seed++;
     if(m_type==1) { 
-      std::default_random_engine generator;
+      std::default_random_engine generator(m_seed);
       std::lognormal_distribution<double> distribution(/*mean=*/m_mean, /*stddev=*/m_error);
       double randomNumber = distribution(generator); 
       m_obs->putCurrentSamplingValue(m_prior,randomNumber);
     } else {
-      std::default_random_engine generator;
+      std::default_random_engine generator(m_seed);
       std::normal_distribution<double> distribution(/*mean=*/m_mean, /*stddev=*/m_error);
       double randomNumber = distribution(generator);
-      while( (randomNumber<(m_mean-2.0*m_error)) && (randomNumber>(m_mean+2.0*m_error)) ){
+      while( (randomNumber<(m_mean-m_random_range_factor*m_error)) || (randomNumber>(m_mean+m_random_range_factor*m_error)) ){
          randomNumber = distribution(generator); //add limitations to the number?
       }
       m_obs->putCurrentSamplingValue(m_prior,randomNumber);

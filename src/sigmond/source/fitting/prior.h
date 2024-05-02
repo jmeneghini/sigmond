@@ -29,6 +29,7 @@ class Prior
   double m_inerror;
   static int m_seed;
   uint m_type = 0; //0=normal, 1=lognormal
+  double m_random_range_factor = 2.0;
   
   void resample();
 

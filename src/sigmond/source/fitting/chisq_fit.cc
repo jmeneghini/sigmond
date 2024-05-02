@@ -62,7 +62,20 @@ void doChiSquareFitting(ChiSquare& chisq_ref,
    double chisq_samp;
    bool flag=CSM.findMinimum(start,chisq_samp,params_sample);
    if (!flag){
-      throw(std::invalid_argument("Fitting with one of the resamplings failed"));
+        //if sample fit fails, resample the priors and try again x 100
+        if (npriors){
+            std::map<uint,Prior> priors = chisq_ref.getFitPriors();
+            std::map<uint,Prior>::iterator ip;
+            for(uint i=0;i<100;i++){
+                for(ip=priors.begin();ip!=priors.end();ip++){
+                    ip->second.resample_current_index();
+                }
+                flag=CSM.findMinimum(start,chisq_samp,params_sample);
+                if(flag) break;
+            }
+            if (!flag) std::cout<<"Sample fit failed"<<std::endl;
+        }
+      if (!flag) throw(std::invalid_argument("Fitting with one of the resamplings failed"));
    }
    for (uint p=0;p<nparams;++p)
       m_obs->putCurrentSamplingValue(param_infos[p],params_sample[p]);}
