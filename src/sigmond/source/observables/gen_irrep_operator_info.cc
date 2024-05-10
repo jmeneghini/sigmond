@@ -193,7 +193,7 @@ void GenIrrepOperatorInfo::encode(const string& isostr, int strangeness, const s
     throw(std::invalid_argument("Strangeness not currently supported"));}
  if (mom_sqr>int(momt_mask)){
     throw(std::invalid_argument("Momentum not currently supported"));}
- const uint maxlength=24;
+ const uint maxlength=50;
  if (name.length()>maxlength){
     throw(std::invalid_argument("GIOperator name too long"));}
  if (index>=32768){
