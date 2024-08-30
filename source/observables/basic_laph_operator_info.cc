@@ -576,14 +576,32 @@ void BasicLapHOperatorInfo::xmlread_hadron(ArgsHandler& xin, const string& topta
  unsigned int irrepcode=m_irreps.encode(irrep);
 
  string spatialType(xh.getString("SpatialType"));
- unsigned int spcode=m_spatial.encode(spatialType);
+ unsigned int spcode;
+ if ((spatialType=="CU")||(spatialType=="OA")) {
+   spcode=m_spatial.encode("VI");
+ }
+ else {
+   spcode=m_spatial.encode(spatialType);
+ }
 
  int spatialIdNum, dispLength; 
  if (is_glueball(fcode)){  // glueball
     spatialIdNum=0; dispLength=0;}
  else{
-    xh.getInt("SpatialIdNum",spatialIdNum);
-    xh.getInt("DispLength",dispLength);
+    if (spatialType=="CU") {
+      spatialType="VI";
+      spatialIdNum=0;
+      dispLength=0;
+    }
+    else if (spatialType=="OA") {
+      spatialType="VI";
+      spatialIdNum=1;
+      dispLength=0;
+    }
+    else {
+      xh.getInt("SpatialIdNum",spatialIdNum);
+      xh.getInt("DispLength",dispLength);
+    }
     if ((dispLength<0)||(dispLength>int(dlen_mask))
        ||(spatialIdNum<0)||(spatialIdNum>int(spid_mask))){
        throw(std::invalid_argument("Bad hadron operator input xml data"));}
