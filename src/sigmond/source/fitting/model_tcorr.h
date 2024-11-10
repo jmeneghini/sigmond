@@ -106,7 +106,7 @@ class TemporalCorrelatorModel
     uint m_effmasstype;   // effective mass type for plotting
     std::map<uint,Prior> m_priors;
     std::vector<uint> m_prior_type;
-
+    std::vector<double> m_initial_params; //not yet applied to all models
 
  private:
           // disallow copying
@@ -147,6 +147,10 @@ class TemporalCorrelatorModel
 
     virtual void guessInitialParamValues(const std::vector<double>& data, const std::vector<uint>& tvals,
                                          std::vector<double>& fitparam) const = 0;    
+
+    void set_initial_parameters(const std::vector<double>& init){
+        for(uint i=0;i<init.size();i++) m_initial_params.push_back(init[i]); 
+    }
 
     void output_tag(XMLHandler& xmlout) const;
 
@@ -2018,6 +2022,6 @@ class TimeForwardFourExponential :  public TemporalCorrelatorModel
                    double& dCval, double& dDDDval, double& dEval) const;
 };
 
-
 // ******************************************************************************
+
 #endif

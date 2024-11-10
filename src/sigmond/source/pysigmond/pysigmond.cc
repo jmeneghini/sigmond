@@ -844,9 +844,8 @@ PYBIND11_MODULE(sigmond, m) {
 //     .def("evalResiduals", (vector<double> (ChiSquare::*) (const vector<double>&) const)  &ChiSquare::evalResiduals);
     
   py::class_<RealTemporalCorrelatorFit>(m,"RealTemporalCorrelatorFit")
-    .def(py::init<XMLHandler &, MCObsHandler &, int>());
-    // .def("evalResiduals", (vector<double> (RealTemporalCorrelatorFit::*) (const vector<double>&) const)  &RealTemporalCorrelatorFit::evalResiduals);
-    // .def("evalChiSquare", &RealTemporalCorrelatorFit::evalChiSquare);
+    .def(py::init<XMLHandler &, MCObsHandler &, int>())
+    .def("getModel", &RealTemporalCorrelatorFit::getModel);
 
   py::class_<NSimRealTemporalCorrelatorFit>(m,"NSimRealTemporalCorrelatorFit")
     .def(py::init<XMLHandler &, MCObsHandler &, int>());
@@ -857,6 +856,7 @@ PYBIND11_MODULE(sigmond, m) {
     .def("evaluate", &TemporalCorrelatorModel::evaluate)
     .def("eval", (&TemporalCorrelatorModel::eval))
     .def("evalGradient", &TemporalCorrelatorModel::evalGradient)
+    .def("set_initial_parameters", &TemporalCorrelatorModel::set_initial_parameters)
     .def("guessInitialParamValues", &TemporalCorrelatorModel::guessInitialParamValues)
     .def("guessInitialParamValuesPy", &TemporalCorrelatorModel::guessInitialParamValuesPy)
     .def("evalGradientPy", &TemporalCorrelatorModel::evalGradientPy)
@@ -865,7 +865,13 @@ PYBIND11_MODULE(sigmond, m) {
 
   py::class_<TimeForwardSingleExponential, TemporalCorrelatorModel>(m,"TimeForwardSingleExponential")
     .def(py::init<int>());
+  py::class_<TimeSymSingleExponential, TemporalCorrelatorModel>(m,"TimeSymSingleExponential")
+    .def(py::init<int>());
   py::class_<TimeForwardTwoExponential, TemporalCorrelatorModel>(m,"TimeForwardTwoExponential")
+    .def(py::init<int>());
+  py::class_<TimeForwardGeomSeriesExponential, TemporalCorrelatorModel>(m,"TimeForwardGeomSeriesExponential")
+    .def(py::init<int>());
+  py::class_<TimeForwardThreeExponential, TemporalCorrelatorModel>(m,"TimeForwardThreeExponential")
     .def(py::init<int>());
   py::class_<DegTwoExpConspiracy, TemporalCorrelatorModel>(m,"DegTwoExpConspiracy")
     .def(py::init<int>());

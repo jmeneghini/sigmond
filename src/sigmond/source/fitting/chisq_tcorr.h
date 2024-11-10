@@ -53,6 +53,8 @@ class RealTemporalCorrelatorFit :  public ChiSquare
 
     uint getTmin() const {return m_tvalues.front();}
 
+    TemporalCorrelatorModel* getModel() {return m_model_ptr;}
+
     uint getTmax() const {return m_tvalues.back();}
     
     uint getNumberOfParams() const {return m_model_ptr->getNumberOfParams();}

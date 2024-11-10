@@ -266,7 +266,8 @@ void TimeForwardSingleExponential::guessInitialParamValues(
 {
  if (data.size()<2)
     throw(std::invalid_argument("SingleExponential -- Error: at least two data points needed! in exponential guess"));
- get_exp_guess(tvals,data,fitparams[0],fitparams[1]);
+ if(m_initial_params.size()>=m_nparams) for(uint i=0;i<fitparams.size();i++) fitparams[i] = m_initial_params[i];
+ else get_exp_guess(tvals,data,fitparams[0],fitparams[1]);
 }
 
 
@@ -802,7 +803,8 @@ void TimeForwardTwoExponential::guessInitialParamValues(
                      vector<double>& fitparams) const
 {
  double tasymfrac=0.33;
- get_two_exp_guess(tvals,data,fitparams[0],fitparams[1],fitparams[2],fitparams[3],tasymfrac);
+ if(m_initial_params.size()>=m_nparams) for(uint i=0;i<fitparams.size();i++) fitparams[i] = m_initial_params[i];
+ else get_two_exp_guess(tvals,data,fitparams[0],fitparams[1],fitparams[2],fitparams[3],tasymfrac);
 }
 
 void TimeForwardTwoExponential::setFitInfo(
@@ -2537,17 +2539,20 @@ void TimeForwardThreeExponential::guessInitialParamValues(
                      const vector<double>& data, const vector<uint>& tvals,
                      vector<double>& fitparams) const
 {
- double tasymfrac=0.33;
- vector<uint> early_tvals;
- vector<double> early_data;
- if(tvals.size()>=5){
-   for(uint i=0;i<5;i++){
-      early_tvals.push_back(tvals[i]);
-      early_data.push_back(data[i]);
-   }
+ if(m_initial_params.size()>=m_nparams) for(uint i=0;i<fitparams.size();i++) fitparams[i] = m_initial_params[i];
+ else {
+    double tasymfrac=0.33;
+    vector<uint> early_tvals;
+    vector<double> early_data;
+    if(tvals.size()>=5){
+    for(uint i=0;i<5;i++){
+        early_tvals.push_back(tvals[i]);
+        early_data.push_back(data[i]);
+    }
+    }
+    TimeForwardTwoExponential::get_two_exp_guess(early_tvals,early_data,fitparams[0],fitparams[1],fitparams[4],fitparams[5],tasymfrac);
+    TimeForwardTwoExponential::get_two_exp_guess(tvals,data,fitparams[0],fitparams[1],fitparams[2],fitparams[3],tasymfrac);
  }
- TimeForwardTwoExponential::get_two_exp_guess(early_tvals,early_data,fitparams[0],fitparams[1],fitparams[4],fitparams[5],tasymfrac);
- TimeForwardTwoExponential::get_two_exp_guess(tvals,data,fitparams[0],fitparams[1],fitparams[2],fitparams[3],tasymfrac);
 }
 
 void TimeForwardThreeExponential::setFitInfo(
@@ -3213,3 +3218,6 @@ void TimeForwardFourExponential::eval_grad(
  dDDDval=-2.0*tf*C*DDD*dCval;
  dEval=A*r1*r4;
 }
+
+// ******************************************************************************
+
