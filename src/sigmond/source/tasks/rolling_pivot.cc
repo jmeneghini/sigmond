@@ -251,7 +251,6 @@ void RollingPivotOfCorrMat::create_pivot(LogHelper& xmlout, bool checkMetricErro
  bool subvev=m_cormat_info->subtractVEV();
  m_moh->setSamplingBegin();   // rotate using full estimates
  vector<MCEstimate> corr0_diag,corrZ_diag;
- bool save_memory=true;
     
  // getHermCorrelatorMatrixAtTime_CurrentSampling is set up to handle improved operators; not yet set up here
  const TransMatrix *dummy_tmat; 
@@ -912,7 +911,7 @@ void RollingPivotOfCorrMat::do_corr_rotation(uint timeval, bool diagonly) //need
              for( uint j = 0; j<nops;j++){
                  if( pinnings[i+skip] < 0 ) skip++;
                  if( i+skip >= nlevels ) break;
-                 if( pinnings[i+skip] >= nlevels ) break;
+                 if( uint(pinnings[i+skip]) >= nlevels ) break;
                  reordered_eigvecs.put( j, pinnings[i+skip], eigvecs.get(j,i+skip) ); 
                  m_refrecent.put( j, pinnings[i+skip], eigvecs.get(j,i+skip) );
              }
