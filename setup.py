@@ -62,6 +62,7 @@ class CMakeBuild(build_ext_orig):
         else:
             cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
             cmake_args += ["-DCMAKE_CXX_FLAGS='-DDEFAULTENSFILE=\'\"\"\' -Wall -std=c++17 -O3 -llapack -lhdf5'"]
+            # cmake_args += ["-DCMAKE_CXX_FLAGS='-DDEFAULTENSFILE=\'\"\"\' -Wall -std=c++17 -g -O0 -llapack -lhdf5'"] # debug
             # build_args += ['--', '-j2']
 
         env = os.environ.copy()
@@ -72,9 +73,9 @@ class CMakeBuild(build_ext_orig):
             os.makedirs(self.build_temp)
 
         # # First cmake
-        subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
+        subprocess.check_call(['cmake', '--log-level=VERBOSE', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
         # Main build
-        subprocess.check_call(['cmake', '--build', "."] , cwd=self.build_temp)
+        subprocess.check_call(['cmake', '--build', ".", '--verbose'] , cwd=self.build_temp)
 
 setup(
     name='sigmond',

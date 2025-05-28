@@ -3184,7 +3184,7 @@ void doCorrelatorInteractionRatioBySamplings(MCObsHandler& moh,
 {
  obskeys.clear();
  uint nterms=freeSingleOpInfos.size();
- if (nterms<2) throw(std::invalid_argument("Two or more FreeSingleOperators required"));
+//  if (nterms<2) throw(std::invalid_argument("Two or more FreeSingleOperators required"));
  bool herm=true;
  bool overwrite=true;
  CorrelatorAtTimeInfo ratiocorr(ratio_op,ratio_op,0,herm,false);

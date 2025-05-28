@@ -3,6 +3,8 @@ project(sigmond) #CMAKE_CXX_COMPILER set this using python
 cmake_minimum_required(VERSION 3.4...3.18)
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}" ${CMAKE_MODULE_PATH})
 
+#set(CMAKE_BUILD_TYPE Debug)
+
 find_package(Python COMPONENTS Interpreter Development)
 
 #check this as a directory and also include other directories.
@@ -27,8 +29,16 @@ include_directories("${PROJECT_SOURCE_DIR}/fitting")
 include_directories("${PROJECT_SOURCE_DIR}/plotting")
 include_directories("${PROJECT_SOURCE_DIR}/pysigmond")
 
+set(SCALAR_TYPE $ENV{SIGMOND_SCALAR_TYPE})
+
+if (NOT DEFINED SCALAR_TYPE) # default to complex numbers
+    set(SCALAR_TYPE "COMPLEXNUMBERS")
+endif()
+
+message(STATUS "Compiling sigmond with scalar type: ${SCALAR_TYPE}")
+
 #set cxx compiler
-add_compile_definitions(DOUBLEPRECISION COMPLEXNUMBERS DEFAULT_HDF5 NOGRACE NO_MINUIT NOXML HDF5 LAPACK)
+add_compile_definitions(DOUBLEPRECISION ${SCALAR_TYPE} DEFAULT_HDF5 NOGRACE NO_MINUIT NOXML HDF5 LAPACK)
 
 # set the project name
 project(Sigmond VERSION 1.0)
