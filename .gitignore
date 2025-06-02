@@ -13,3 +13,4 @@ sigmond_convert
 .tags
 
 install/*
+build/*
