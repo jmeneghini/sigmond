@@ -867,6 +867,8 @@ PYBIND11_MODULE(sigmond, m) {
     .def(py::init<int>());
   py::class_<TimeSymSingleExponential, TemporalCorrelatorModel>(m,"TimeSymSingleExponential")
     .def(py::init<int>());
+  py::class_<TimeSymSingleExponentialPlusConstant, TemporalCorrelatorModel>(m,"TimeSymSingleExponentialPlusConstant")
+    .def(py::init<int>());
   py::class_<TimeForwardTwoExponential, TemporalCorrelatorModel>(m,"TimeForwardTwoExponential")
     .def(py::init<int>());
   py::class_<TimeForwardGeomSeriesExponential, TemporalCorrelatorModel>(m,"TimeForwardGeomSeriesExponential")
