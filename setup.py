@@ -35,19 +35,22 @@ class CMakeBuild(build_ext_orig):
 
     def build_extension(self, ext):
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
-
+        
+        # Check environment variable for build control
+        skip_query = os.environ.get('SIGMOND_SKIP_QUERY', '').lower() in ('1', 'true', 'yes')
+        
         cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
                       '-DPYTHON_EXECUTABLE=' + sys.executable,
                        '-DCMAKE_VERBOSE_MAKEFILE:BOOL=OFF',
                        '-Wno-dev',
                       '-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=' + extdir,
+                      '-DCMAKE_INSTALL_PREFIX=' + sys.prefix,
                       '-DVERSION_INFO=0.0.1',
-                    #   '-DCMAKE_INSTALL_RPATH=$ORIGIN',
-                    #   '-DCMAKE_BUILD_WITH_INSTALL_RPATH:BOOL=ON',
-                    #   '-DCMAKE_INSTALL_RPATH_USE_LINK_PATH:BOOL=ON',
-                    #   '-DCMAKE_INSTALL_PREFIX:PATH=' + extdir,
-                    #   '-DLIBRARY_OUTPUT_NAME=sigmond.so',#+out_file,
                      ]
+
+        # Add build control flag
+        if skip_query:
+            cmake_args.append('-DSKIP_SIGMOND_QUERY=ON')
 
         cfg = 'Debug' if self.debug else 'Release'
         build_args = ['--config', cfg]
@@ -76,13 +79,15 @@ class CMakeBuild(build_ext_orig):
         subprocess.check_call(['cmake', '--log-level=VERBOSE', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
         # Main build
         subprocess.check_call(['cmake', '--build', ".", '--verbose'] , cwd=self.build_temp)
+        # Install (this will install sigmond_query if built)
+        subprocess.check_call(['cmake', '--install', ".", '--verbose'] , cwd=self.build_temp)
 
 setup(
     name='sigmond',
     version="0.0.0.dev1",
     author="Sarah Skinner",
     author_email="sarakski@andrew.cmu.edu",
-    description='A python interface to the for the Sigmond analysis software.',
+    description='A python interface and query toolfor the Sigmond analysis software.',
     long_description='',
     packages=['sigmond'],
     package_dir={"": "src"},

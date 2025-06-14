@@ -59,7 +59,6 @@ set_target_properties(observables PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LI
 set_target_properties(plotting PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/sigmond)
 set_target_properties(tasks PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/sigmond)
 
-
 pybind11_add_module(sigmond pysigmond/pysigmond.cc)
 
 # target_link_libraries(sigmond PUBLIC data_handling_libs analysis_libs tasks_libs fitting_libs observables_libs plotting_libs) 
@@ -76,3 +75,30 @@ target_link_libraries(tasks -lgfortran)
 target_link_libraries(data_handling -lhdf5)
 
 target_compile_definitions(sigmond PRIVATE VERSION_INFO=${VERSION_INFO})
+
+# --- Build sigmond_query executable (unless skipped) ---
+option(SKIP_SIGMOND_QUERY "Skip building sigmond_query executable" OFF)
+if(NOT SKIP_SIGMOND_QUERY)
+    # Source files for sigmond_query
+    set(SIGQUERY_SRCS
+        ${CMAKE_CURRENT_SOURCE_DIR}/data_handling/sigmond_query.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/observables/basic_laph_operator_info.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/data_handling/byte_handler.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/observables/correlator_info.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/observables/correlator_matrix_info.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/observables/encoder.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/observables/gen_irrep_operator_info.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/data_handling/io_handler_fstream.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/data_handling/io_handler_hdf5.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/analysis/matrix.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/observables/mcobs_info.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/observables/momenta.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/observables/operator_info.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/scalar_defs.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/xml_handler.cc
+    )
+
+    add_executable(sigmond_query ${SIGQUERY_SRCS})
+    target_link_libraries(sigmond_query -llapack -lhdf5)
+    install(TARGETS sigmond_query DESTINATION bin)
+endif()
