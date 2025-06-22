@@ -64,7 +64,7 @@ class CMakeBuild(build_ext_orig):
             # build_args += ['--', '/m']
         else:
             cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
-            cmake_args += ["-DCMAKE_CXX_FLAGS='-DDEFAULTENSFILE=\'\"\"\' -Wall -std=c++17 -O3 -llapack -lhdf5'"]
+            cmake_args += ["-DCMAKE_CXX_FLAGS='-DDEFAULTENSFILE=\'\"\"\' -Wall -std=c++17 -O3 -llapack'"]
             # cmake_args += ["-DCMAKE_CXX_FLAGS='-DDEFAULTENSFILE=\'\"\"\' -Wall -std=c++17 -g -O0 -llapack -lhdf5'"] # debug
             # build_args += ['--', '-j2']
 

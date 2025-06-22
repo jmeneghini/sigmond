@@ -7,6 +7,41 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}" ${CMAKE_MODULE_PATH})
 
 find_package(Python COMPONENTS Interpreter Development)
 
+# Find HDF5 - optimized for conda/docker environments
+find_package(HDF5 COMPONENTS C)
+if(HDF5_FOUND)
+    # In conda environments, CMake often finds HDF5 but variables may be empty
+    # because conda uses compiler wrappers
+    if(NOT HDF5_INCLUDE_DIRS AND DEFINED ENV{CONDA_PREFIX})
+        set(HDF5_INCLUDE_DIRS "$ENV{CONDA_PREFIX}/include")
+    endif()
+    if(NOT HDF5_LIBRARIES AND DEFINED ENV{CONDA_PREFIX})
+        if(APPLE)
+            set(HDF5_LIBRARIES "$ENV{CONDA_PREFIX}/lib/libhdf5.dylib")
+        else()
+            set(HDF5_LIBRARIES "$ENV{CONDA_PREFIX}/lib/libhdf5.so")
+        endif()
+    endif()
+    message(STATUS "Found HDF5 - includes: ${HDF5_INCLUDE_DIRS}, libs: ${HDF5_LIBRARIES}")
+    add_definitions(${HDF5_DEFINITIONS})
+else()
+    # Fallback for conda environments
+    if(DEFINED ENV{CONDA_PREFIX})
+        set(HDF5_INCLUDE_DIRS "$ENV{CONDA_PREFIX}/include")
+        if(APPLE)
+            set(HDF5_LIBRARIES "$ENV{CONDA_PREFIX}/lib/libhdf5.dylib")
+        else()
+            set(HDF5_LIBRARIES "$ENV{CONDA_PREFIX}/lib/libhdf5.so")
+        endif()
+        message(STATUS "Using conda HDF5: ${HDF5_LIBRARIES}")
+    else()
+        message(FATAL_ERROR "HDF5 not found!")
+    endif()
+endif()
+
+# Set HDF5 includes globally for this project since multiple modules need it
+include_directories(${HDF5_INCLUDE_DIRS})
+
 #check this as a directory and also include other directories.
 set(WINDOWS_LIB_DIRS "${Python_LIBRARY_DIRS}")
 string(REPLACE "miniconda3/libs" "miniconda3/Lib" WINDOWS_LIB_DIRS "${WINDOWS_LIB_DIRS}")
@@ -69,10 +104,27 @@ target_link_libraries(sigmond PUBLIC fitting )
 target_link_libraries(sigmond PUBLIC observables )
 target_link_libraries(sigmond PUBLIC plotting)
 
-target_link_libraries(tasks -llapack)
-target_link_libraries(tasks -lblas)
-target_link_libraries(tasks -lgfortran)
-target_link_libraries(data_handling -lhdf5)
+# Set up library dependencies
+target_link_libraries(data_handling ${HDF5_LIBRARIES})
+target_link_libraries(tasks PUBLIC data_handling analysis fitting observables plotting)
+
+# Link math libraries - use different approach for macOS
+if(APPLE)
+    # On macOS, link to conda libraries explicitly and allow undefined symbols
+    target_link_libraries(tasks PRIVATE "$ENV{CONDA_PREFIX}/lib/liblapack.dylib")
+    target_link_libraries(tasks PRIVATE "$ENV{CONDA_PREFIX}/lib/libblas.dylib") 
+    target_link_libraries(tasks PRIVATE "$ENV{CONDA_PREFIX}/lib/libgfortran.dylib")
+    set_target_properties(data_handling PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+    set_target_properties(analysis PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+    set_target_properties(fitting PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+    set_target_properties(observables PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+    set_target_properties(plotting PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+    set_target_properties(tasks PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+else()
+    target_link_libraries(tasks PRIVATE -llapack -lblas -lgfortran)
+endif()
+
+# HDF5 includes are now set globally above
 
 target_compile_definitions(sigmond PRIVATE VERSION_INFO=${VERSION_INFO})
 
@@ -99,6 +151,7 @@ if(NOT SKIP_SIGMOND_QUERY)
     )
 
     add_executable(sigmond_query ${SIGQUERY_SRCS})
-    target_link_libraries(sigmond_query -llapack -lhdf5)
+    target_include_directories(sigmond_query PRIVATE ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(sigmond_query -llapack ${HDF5_LIBRARIES})
     install(TARGETS sigmond_query DESTINATION bin)
 endif()
