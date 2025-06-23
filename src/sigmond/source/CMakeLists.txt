@@ -152,6 +152,18 @@ if(NOT SKIP_SIGMOND_QUERY)
 
     add_executable(sigmond_query ${SIGQUERY_SRCS})
     target_include_directories(sigmond_query PRIVATE ${HDF5_INCLUDE_DIRS})
-    target_link_libraries(sigmond_query -llapack ${HDF5_LIBRARIES})
+    
+    # Link sigmond_query with proper libraries for each platform
+    if(APPLE)
+        target_link_libraries(sigmond_query PRIVATE 
+            "$ENV{CONDA_PREFIX}/lib/liblapack.dylib"
+            "$ENV{CONDA_PREFIX}/lib/libblas.dylib" 
+            "$ENV{CONDA_PREFIX}/lib/libgfortran.dylib"
+            ${HDF5_LIBRARIES})
+        set_target_properties(sigmond_query PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+    else()
+        target_link_libraries(sigmond_query -llapack -lblas -lgfortran ${HDF5_LIBRARIES})
+    endif()
+    
     install(TARGETS sigmond_query DESTINATION bin)
 endif()
