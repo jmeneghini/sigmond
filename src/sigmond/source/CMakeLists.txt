@@ -8,13 +8,14 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}" ${CMAKE_MODULE_PATH})
 set(BUILD_SHARED_LIBS OFF)
 
 # Force absolute paths instead of @rpath on macOS (helpful for conda environments)
-option(SIGMOND_DISABLE_RPATH_MACOS "Disable @rpath and use absolute paths on macOS" ON)
-if(APPLE AND SIGMOND_DISABLE_RPATH_MACOS)
+if(APPLE)
     message(STATUS "Disabling @rpath on macOS - using absolute paths for linking")
     set(CMAKE_MACOSX_RPATH FALSE)
     set(CMAKE_INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-headerpad_max_install_names")
-    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,-headerpad_max_install_names")
+    # Force absolute paths with linker flags
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-headerpad_max_install_names -Wl,-install_name,@loader_path/../lib/")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,-headerpad_max_install_names -Wl,-install_name,@loader_path/../lib/")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-headerpad_max_install_names")
 endif()
 
 find_package(Python COMPONENTS Interpreter Development)
@@ -227,7 +228,11 @@ function(sigmond_link_libraries target_name)
     
     # Platform-specific linking
     if(APPLE)
-        set_target_properties(${target_name} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+        set_target_properties(${target_name} PROPERTIES 
+            LINK_FLAGS "-undefined dynamic_lookup -Wl,-no_fixup_chains"
+            INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib"
+            MACOSX_RPATH FALSE
+        )
         # Only link gfortran if not using Accelerate framework
         if(NOT ACCELERATE_FOUND)
             target_link_libraries(${target_name} PRIVATE -lgfortran)
@@ -257,12 +262,14 @@ set_target_properties(plotting PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRA
 set_target_properties(tasks PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/sigmond)
 
 if(APPLE)
-    set_target_properties(analysis PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
-    set_target_properties(data_handling PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
-    set_target_properties(fitting PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
-    set_target_properties(observables PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
-    set_target_properties(plotting PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
-    set_target_properties(tasks PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+    # Set properties for all library targets to force absolute paths
+    foreach(target analysis data_handling fitting observables plotting tasks)
+        set_target_properties(${target} PROPERTIES 
+            LINK_FLAGS "-undefined dynamic_lookup -Wl,-no_fixup_chains"
+            INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib"
+            MACOSX_RPATH FALSE
+        )
+    endforeach()
 endif()
 
 pybind11_add_module(sigmond pysigmond/pysigmond.cc)
