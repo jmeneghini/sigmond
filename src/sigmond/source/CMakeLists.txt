@@ -214,9 +214,17 @@ function(sigmond_link_libraries target_name)
         message(STATUS "${target_name}: Linked Grace")
     endif()
     
-    # Platform-specific Fortran runtime linking
-    if(NOT APPLE OR NOT ACCELERATE_FOUND)
-        # Link Fortran runtime for LAPACK (not needed with macOS Accelerate)
+    # Platform-specific linking
+    if(APPLE)
+        # macOS-specific linker flags for dynamic symbol resolution
+        set_target_properties(${target_name} PROPERTIES
+            LINK_FLAGS "-undefined dynamic_lookup")
+        # Only link gfortran if not using Accelerate framework
+        if(NOT ACCELERATE_FOUND)
+            target_link_libraries(${target_name} PRIVATE -lgfortran)
+        endif()
+    else()
+        # Link Fortran runtime for LAPACK on non-macOS systems
         target_link_libraries(${target_name} PRIVATE -lgfortran)
     endif()
     
@@ -331,7 +339,14 @@ if(NOT SKIP_SIGMOND_BATCH)
 
     add_executable(sigmond_batch ${SIGMOND_MAIN_SRCS})
     sigmond_link_libraries(sigmond_batch)
-    install(TARGETS sigmond_batch DESTINATION bin)
+    
+    # Install with custom directory if specified
+    if(DEFINED SIGMOND_BATCH_INSTALL_DIR)
+        install(TARGETS sigmond_batch DESTINATION ${SIGMOND_BATCH_INSTALL_DIR})
+        message(STATUS "sigmond_batch will install to: ${SIGMOND_BATCH_INSTALL_DIR}")
+    else()
+        install(TARGETS sigmond_batch DESTINATION bin)
+    endif()
     message(STATUS "sigmond_batch executable will be built and installed")
 else()
     message(STATUS "sigmond_batch executable is SKIPPED")
@@ -363,7 +378,14 @@ if(NOT SKIP_SIGMOND_QUERY)
 
     add_executable(sigmond_query ${SIGQUERY_SRCS})
     sigmond_link_libraries(sigmond_query)
-    install(TARGETS sigmond_query DESTINATION bin)
+    
+    # Install with custom directory if specified
+    if(DEFINED SIGMOND_QUERY_INSTALL_DIR)
+        install(TARGETS sigmond_query DESTINATION ${SIGMOND_QUERY_INSTALL_DIR})
+        message(STATUS "sigmond_query will install to: ${SIGMOND_QUERY_INSTALL_DIR}")
+    else()
+        install(TARGETS sigmond_query DESTINATION bin)
+    endif()
     message(STATUS "sigmond_query executable will be built and installed")
 else()
     message(STATUS "sigmond_query executable is SKIPPED")

@@ -77,7 +77,9 @@ class SigmondConfig:
                 'default_file_format': 'hdf5',
                 'enable_minuit': False,
                 'enable_grace': False,
-                'build_jobs': os.cpu_count() or 1
+                'build_jobs': os.cpu_count() or 1,
+                'batch_install_dir': '',
+                'query_install_dir': ''
             },
             'libraries': {
                 'hdf5': {'include_dirs': [], 'library_dirs': []},
@@ -163,6 +165,12 @@ class SigmondConfig:
             args.append('-DSKIP_SIGMOND_QUERY=ON')
         if self.config['build']['skip_batch']:
             args.append('-DSKIP_SIGMOND_BATCH=ON')
+        
+        # Custom install directories
+        if self.config['build']['batch_install_dir']:
+            args.append(f'-DSIGMOND_BATCH_INSTALL_DIR={self.config["build"]["batch_install_dir"]}')
+        if self.config['build']['query_install_dir']:
+            args.append(f'-DSIGMOND_QUERY_INSTALL_DIR={self.config["build"]["query_install_dir"]}')
         
         # Manual library paths (always required libraries)
         required_libs = ['hdf5', 'lapack']
@@ -308,6 +316,14 @@ class SigmondConfig:
             import os
             jobs = os.cpu_count() or 1
         return jobs
+    
+    def get_batch_install_dir(self) -> str:
+        """Get custom install directory for sigmond_batch."""
+        return self.config['build']['batch_install_dir']
+    
+    def get_query_install_dir(self) -> str:
+        """Get custom install directory for sigmond_query."""
+        return self.config['build']['query_install_dir']
 
 
 # Convenience function for setup.py
@@ -338,7 +354,9 @@ def create_config(output_path: str, template: bool = False):
             return
     else:
         # Create minimal config
-        content = """# Sigmond Configuration
+        import os
+        cpu_count = os.cpu_count() or 1
+        content = f"""# Sigmond Configuration
 [build]
 skip_query = false
 skip_batch = false
@@ -348,6 +366,9 @@ default_file_format = "hdf5"
 enable_minuit = false
 enable_grace = false
 verbose = false
+build_jobs = {cpu_count}           # Number of parallel build jobs (0 = auto-detect)
+batch_install_dir = ""     # Custom install directory for sigmond_batch (empty = default bin/)
+query_install_dir = ""     # Custom install directory for sigmond_query (empty = default bin/)
 
 [libraries]
 # Manual library paths (only specify if auto-detection fails)
