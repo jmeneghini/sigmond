@@ -144,6 +144,9 @@ if(NOT HDF5_FOUND)
     message(FATAL_ERROR "HDF5 not found. Please specify paths in sigmond.toml or install HDF5 development packages.")
 endif()
 
+# Set HDF5 includes globally for this project since multiple modules need it
+include_directories(${HDF5_INCLUDE_DIRS})
+
 # LAPACK (required) - Cross-platform with macOS Accelerate support
 sigmond_find_library(LAPACK LIBRARIES "lapack" "blas" REQUIRED)
 if(LAPACK_AUTO_DETECT)
@@ -200,7 +203,7 @@ message(STATUS "=====================================")
 # Cross-platform library linking with automatic dependency resolution
 function(sigmond_link_libraries target_name)
     # Always required libraries
-    target_link_libraries(${target_name} PRIVATE HDF5::HDF5 LAPACK::LAPACK)
+    target_link_libraries(${target_name} PRIVATE LAPACK::LAPACK)
     
     # Optional libraries (only if found and enabled)
     if(MINUIT2_FOUND)
