@@ -1,0 +1,38 @@
+# Sigmond Configuration
+[build]
+skip_query = false
+skip_batch = false
+precision = "double"
+numbers = "complex"
+default_file_format = "hdf5"
+enable_minuit = false
+enable_grace = false
+verbose = true
+build_jobs = 0           # Number of parallel build jobs (0 = auto-detect)
+batch_install_dir = "~/.local/bin"   # Custom install directory for sigmond_batch (empty = default bin/)
+query_install_dir = "~/.local/bin"   # Custom install directory for sigmond_query (empty = default bin/)
+
+[libraries]
+# Manual library paths (only specify if auto-detection fails)
+
+[libraries.hdf5]
+include_dirs = []
+library_dirs = []
+
+[libraries.lapack]
+include_dirs = []
+library_dirs = []
+
+[libraries.accelerate]
+framework_dirs = []
+
+[libraries.minuit2]
+include_dirs = []
+library_dirs = []
+
+[libraries.grace]
+include_dirs = []
+library_dirs = []
+
+[compiler]
+cxx_flags = []

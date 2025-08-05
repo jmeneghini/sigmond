@@ -5,6 +5,8 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}" ${CMAKE_MODULE_PATH})
 
 #set(CMAKE_BUILD_TYPE Debug)
 
+set(BUILD_SHARED_LIBS OFF)
+
 find_package(Python COMPONENTS Interpreter Development)
 
 message("${Python_LIBRARY_DIRS}")
@@ -23,9 +25,6 @@ include_directories("${PROJECT_SOURCE_DIR}/data_handling")
 include_directories("${PROJECT_SOURCE_DIR}/fitting")
 include_directories("${PROJECT_SOURCE_DIR}/plotting")
 include_directories("${PROJECT_SOURCE_DIR}/pysigmond")
-
-# set the project name
-project(Sigmond VERSION 1.0)
 
 # === SIGMOND CONFIGURATION SYSTEM ===
 
@@ -216,10 +215,8 @@ function(sigmond_link_libraries target_name)
     
     # Platform-specific linking
     if(APPLE)
-        # macOS-specific linker flags for dynamic symbol resolution
-        set_target_properties(${target_name} PROPERTIES
-            LINK_FLAGS "-undefined dynamic_lookup")
         # Only link gfortran if not using Accelerate framework
+        set_target_properties(${target_name} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
         if(NOT ACCELERATE_FOUND)
             target_link_libraries(${target_name} PRIVATE -lgfortran)
         endif()
@@ -247,6 +244,15 @@ set_target_properties(observables PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LI
 set_target_properties(plotting PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/sigmond)
 set_target_properties(tasks PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/sigmond)
 
+if(APPLE)
+    set_target_properties(analysis PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+    set_target_properties(data_handling PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+    set_target_properties(fitting PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+    set_target_properties(observables PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+    set_target_properties(plotting PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+    set_target_properties(tasks PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+endif()
+
 pybind11_add_module(sigmond pysigmond/pysigmond.cc)
 
 # target_link_libraries(sigmond PUBLIC data_handling_libs analysis_libs tasks_libs fitting_libs observables_libs plotting_libs) 
@@ -257,18 +263,8 @@ target_link_libraries(sigmond PUBLIC fitting )
 target_link_libraries(sigmond PUBLIC observables )
 target_link_libraries(sigmond PUBLIC plotting)
 
-target_link_libraries(tasks PUBLIC LAPACK::LAPACK)
-if(APPLE)
-    # On macOS, gfortran usually not needed if using system LAPACK/Accelerate
-    find_library(ACCELERATE_FRAMEWORK Accelerate)
-    if(NOT ACCELERATE_FRAMEWORK)
-        target_link_libraries(tasks PUBLIC -lgfortran)
-    endif()
-else()
-    # Linux: LAPACK usually needs gfortran
-    target_link_libraries(tasks PUBLIC -lgfortran)
-endif()
-target_link_libraries(data_handling PRIVATE HDF5::HDF5)
+# Link external libraries
+sigmond_link_libraries(sigmond)
 
 target_compile_definitions(sigmond PRIVATE VERSION_INFO=${VERSION_INFO})
 
