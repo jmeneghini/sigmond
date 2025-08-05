@@ -9,6 +9,7 @@ build-backend = "setuptools.build_meta"
 [project]
 dependencies = [
 	"pybind11",
+	"tomli; python_version<'3.11'",
 ]
 name = "sigmond"
 version = "0.0.0.dev1"
