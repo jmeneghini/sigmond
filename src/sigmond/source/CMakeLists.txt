@@ -7,6 +7,16 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}" ${CMAKE_MODULE_PATH})
 
 set(BUILD_SHARED_LIBS OFF)
 
+# Force absolute paths instead of @rpath on macOS (helpful for conda environments)
+option(SIGMOND_DISABLE_RPATH_MACOS "Disable @rpath and use absolute paths on macOS" ON)
+if(APPLE AND SIGMOND_DISABLE_RPATH_MACOS)
+    message(STATUS "Disabling @rpath on macOS - using absolute paths for linking")
+    set(CMAKE_MACOSX_RPATH FALSE)
+    set(CMAKE_INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-headerpad_max_install_names")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,-headerpad_max_install_names")
+endif()
+
 find_package(Python COMPONENTS Interpreter Development)
 
 message("${Python_LIBRARY_DIRS}")
@@ -217,8 +227,8 @@ function(sigmond_link_libraries target_name)
     
     # Platform-specific linking
     if(APPLE)
-        # Only link gfortran if not using Accelerate framework
         set_target_properties(${target_name} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+        # Only link gfortran if not using Accelerate framework
         if(NOT ACCELERATE_FOUND)
             target_link_libraries(${target_name} PRIVATE -lgfortran)
         endif()
