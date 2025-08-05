@@ -82,7 +82,7 @@ class SigmondConfig:
                 'query_install_dir': ''
             },
             'libraries': {
-                'hdf5': {'include_dirs': [], 'library_dirs': []},
+                'hdf5': {'hdf5_root': ''},
                 'lapack': {'include_dirs': [], 'library_dirs': []},
                 'accelerate': {'framework_dirs': []},
                 'minuit2': {'include_dirs': [], 'library_dirs': []},
@@ -172,18 +172,21 @@ class SigmondConfig:
         if self.config['build']['query_install_dir']:
             args.append(f'-DSIGMOND_QUERY_INSTALL_DIR={self.config["build"]["query_install_dir"]}')
         
-        # Manual library paths (always required libraries)
-        required_libs = ['hdf5', 'lapack']
-        for lib_name in required_libs:
-            if lib_name in self.config['libraries']:
-                lib_config = self.config['libraries'][lib_name]
-                lib_upper = lib_name.upper()
-                if lib_config.get('include_dirs'):
-                    inc_dirs = ';'.join(lib_config['include_dirs'])
-                    args.append(f'-DSIGMOND_{lib_upper}_INCLUDE_DIR={inc_dirs}')
-                if lib_config.get('library_dirs'):
-                    lib_dirs = ';'.join(lib_config['library_dirs'])
-                    args.append(f'-DSIGMOND_{lib_upper}_LIBRARY_DIR={lib_dirs}')
+        # HDF5 root path (if specified)
+        if 'hdf5' in self.config['libraries']:
+            hdf5_config = self.config['libraries']['hdf5']
+            if hdf5_config.get('hdf5_root'):
+                args.append(f'-DHDF5_ROOT={hdf5_config["hdf5_root"]}')
+        
+        # LAPACK manual library paths
+        if 'lapack' in self.config['libraries']:
+            lib_config = self.config['libraries']['lapack']
+            if lib_config.get('include_dirs'):
+                inc_dirs = ';'.join(lib_config['include_dirs'])
+                args.append(f'-DSIGMOND_LAPACK_INCLUDE_DIR={inc_dirs}')
+            if lib_config.get('library_dirs'):
+                lib_dirs = ';'.join(lib_config['library_dirs'])
+                args.append(f'-DSIGMOND_LAPACK_LIBRARY_DIR={lib_dirs}')
         
         # Optional libraries (only if enabled)
         if self.config['build']['enable_minuit'] and 'minuit2' in self.config['libraries']:
@@ -374,8 +377,7 @@ query_install_dir = ""     # Custom install directory for sigmond_query (empty =
 # Manual library paths (only specify if auto-detection fails)
 
 [libraries.hdf5]
-include_dirs = []
-library_dirs = []
+hdf5_root = ""
 
 [libraries.lapack]
 include_dirs = []

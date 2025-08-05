@@ -130,18 +130,16 @@ sigmond_debug_config()
 
 # === LIBRARY DETECTION ===
 
-# HDF5 (required)
-sigmond_find_library(HDF5 HEADER "hdf5.h" LIBRARIES "hdf5" REQUIRED)
-if(HDF5_AUTO_DETECT)
-    find_package(HDF5 COMPONENTS C QUIET)
-    if(HDF5_FOUND)
-        sigmond_create_imported_target(HDF5 "${HDF5_LIBRARIES}" "${HDF5_INCLUDE_DIRS}")
-        message(STATUS "Found HDF5 (auto-detect): ${HDF5_LIBRARIES}")
+# HDF5 (required) - Use find_package with HDF5_ROOT support
+find_package(HDF5 COMPONENTS C REQUIRED)
+if(HDF5_FOUND)
+    message(STATUS "Found HDF5: ${HDF5_LIBRARIES}")
+    message(STATUS "HDF5 include dirs: ${HDF5_INCLUDE_DIRS}")
+    if(DEFINED HDF5_ROOT)
+        message(STATUS "HDF5_ROOT was set to: ${HDF5_ROOT}")
     endif()
-endif()
-
-if(NOT HDF5_FOUND)
-    message(FATAL_ERROR "HDF5 not found. Please specify paths in sigmond.toml or install HDF5 development packages.")
+else()
+    message(FATAL_ERROR "HDF5 not found. Please specify HDF5_ROOT in sigmond.toml or install HDF5 development packages.")
 endif()
 
 # Set HDF5 includes globally for this project since multiple modules need it
@@ -203,6 +201,7 @@ message(STATUS "=====================================")
 # Cross-platform library linking with automatic dependency resolution
 function(sigmond_link_libraries target_name)
     # Always required libraries
+    target_link_libraries(${target_name} PRIVATE ${HDF5_LIBRARIES})
     target_link_libraries(${target_name} PRIVATE LAPACK::LAPACK)
     
     # Optional libraries (only if found and enabled)
