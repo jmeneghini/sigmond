@@ -149,6 +149,27 @@ if(HDF5_FOUND)
     if(DEFINED HDF5_ROOT)
         message(STATUS "HDF5_ROOT was set to: ${HDF5_ROOT}")
     endif()
+    
+    # Fix HDF5 rpath issues on macOS
+    if(APPLE)
+        # Create an imported target for HDF5 with fixed linking
+        if(NOT TARGET HDF5::HDF5_fixed)
+            add_library(HDF5::HDF5_fixed INTERFACE IMPORTED)
+            set_target_properties(HDF5::HDF5_fixed PROPERTIES
+                INTERFACE_INCLUDE_DIRECTORIES "${HDF5_INCLUDE_DIRS}"
+            )
+            # Convert HDF5 libraries to absolute paths and disable rpath
+            set(HDF5_ABSOLUTE_LIBS)
+            foreach(lib ${HDF5_LIBRARIES})
+                get_filename_component(lib_abs "${lib}" ABSOLUTE)
+                list(APPEND HDF5_ABSOLUTE_LIBS "${lib_abs}")
+            endforeach()
+            set_target_properties(HDF5::HDF5_fixed PROPERTIES
+                INTERFACE_LINK_LIBRARIES "${HDF5_ABSOLUTE_LIBS}"
+            )
+            message(STATUS "Created HDF5::HDF5_fixed target with absolute paths: ${HDF5_ABSOLUTE_LIBS}")
+        endif()
+    endif()
 else()
     message(FATAL_ERROR "HDF5 not found. Please specify HDF5_ROOT in sigmond.toml or install HDF5 development packages.")
 endif()
@@ -212,7 +233,11 @@ message(STATUS "=====================================")
 # Cross-platform library linking with automatic dependency resolution
 function(sigmond_link_libraries target_name)
     # Always required libraries
-    target_link_libraries(${target_name} PRIVATE ${HDF5_LIBRARIES})
+    if(APPLE AND TARGET HDF5::HDF5_fixed)
+        target_link_libraries(${target_name} PRIVATE HDF5::HDF5_fixed)
+    else()
+        target_link_libraries(${target_name} PRIVATE ${HDF5_LIBRARIES})
+    endif()
     target_link_libraries(${target_name} PRIVATE LAPACK::LAPACK)
     
     # Optional libraries (only if found and enabled)
@@ -228,8 +253,17 @@ function(sigmond_link_libraries target_name)
     
     # Platform-specific linking
     if(APPLE)
+        # Get HDF5 library directories for additional linker flags
+        set(HDF5_LINK_FLAGS "-undefined dynamic_lookup -Wl,-no_fixup_chains")
+        if(HDF5_LIBRARIES)
+            foreach(lib ${HDF5_LIBRARIES})
+                get_filename_component(lib_dir "${lib}" DIRECTORY)
+                set(HDF5_LINK_FLAGS "${HDF5_LINK_FLAGS} -Wl,-L${lib_dir}")
+            endforeach()
+        endif()
+        
         set_target_properties(${target_name} PROPERTIES 
-            LINK_FLAGS "-undefined dynamic_lookup -Wl,-no_fixup_chains"
+            LINK_FLAGS "${HDF5_LINK_FLAGS}"
             INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib"
             MACOSX_RPATH FALSE
         )
