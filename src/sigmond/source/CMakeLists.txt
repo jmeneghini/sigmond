@@ -7,6 +7,27 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}" ${CMAKE_MODULE_PATH})
 
 set(BUILD_SHARED_LIBS OFF)
 
+# Embed conda's lib directory as an RPATH on macOS so that @rpath references
+# inside HDF5 / LAPACK / etc. resolve correctly at runtime.
+if(APPLE AND DEFINED ENV{CONDA_PREFIX} AND NOT "$ENV{CONDA_PREFIX}" STREQUAL "")
+  set(_conda_prefix "$ENV{CONDA_PREFIX}")
+  set(_conda_lib     "${_conda_prefix}/lib")
+  message(STATUS "Conda detected at: ${_conda_prefix}")
+  message(STATUS "Embedding RPATH to: ${_conda_lib}")
+
+  # Help CMake discover packages installed in the environment
+  list(APPEND CMAKE_PREFIX_PATH "${_conda_prefix}")
+
+  # Write the path into every binary produced by this directory
+  set(CMAKE_INSTALL_RPATH "${_conda_lib}")
+  set(CMAKE_BUILD_RPATH   "${_conda_lib}")
+  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
+  set(CMAKE_MACOSX_RPATH ON)
+  # Force CMake to actually use the rpath settings
+  set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
+endif()
+
+
 find_package(Python COMPONENTS Interpreter Development)
 
 message("${Python_LIBRARY_DIRS}")
@@ -201,7 +222,7 @@ message(STATUS "=====================================")
 # Cross-platform library linking with automatic dependency resolution
 function(sigmond_link_libraries target_name)
     # Always required libraries
-    target_link_libraries(${target_name} PRIVATE ${HDF5_LIBRARIES})
+    target_link_libraries(${target_name} PRIVATE HDF5::HDF5)
     target_link_libraries(${target_name} PRIVATE LAPACK::LAPACK)
     
     # Optional libraries (only if found and enabled)
@@ -217,8 +238,15 @@ function(sigmond_link_libraries target_name)
     
     # Platform-specific linking
     if(APPLE)
-        # Only link gfortran if not using Accelerate framework
+        # Make sure conda's lib directory is embedded so @rpath can be resolved
+        if(DEFINED ENV{CONDA_PREFIX} AND NOT "$ENV{CONDA_PREFIX}" STREQUAL "")
+            set_target_properties(${target_name} PROPERTIES
+                BUILD_RPATH   "$ENV{CONDA_PREFIX}/lib"
+                INSTALL_RPATH "$ENV{CONDA_PREFIX}/lib")
+        endif()
+
         set_target_properties(${target_name} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+        # Only link gfortran if not using Accelerate framework
         if(NOT ACCELERATE_FOUND)
             target_link_libraries(${target_name} PRIVATE -lgfortran)
         endif()
