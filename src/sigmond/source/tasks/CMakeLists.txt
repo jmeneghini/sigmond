@@ -15,6 +15,11 @@ add_library(tasks SHARED
    task_rotate_corrs.cc  
    task_utils.cc
    xml_handler.cc)
+
+# Link to other component libraries that tasks depends on
+target_link_libraries(tasks PUBLIC 
+   analysis data_handling fitting observables plotting)
+
 target_precompile_headers( tasks PUBLIC args_handler.h 
    log_helper.h     
    multi_compare.h  

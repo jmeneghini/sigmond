@@ -56,8 +56,13 @@ def create_fallback_config():
                 return 1
         
         def get_compiler_definitions(self): 
-            return ['DOUBLEPRECISION', 'COMPLEXNUMBERS', 'DEFAULT_HDF5', 'NOGRACE', 'NO_MINUIT', 'NOXML', 'HDF5', 'LAPACK']
-        
+            return ['DOUBLEPRECISION', 'COMPLEXNUMBERS', 'DEFAULT_HDF5', 'NOGRACE', 'NO_MINUIT', 'XML', 'HDF5', 'LAPACK']
+        # note: Only DEFAULT_FSTREAM exists (not DEFAULT_HDF5)
+        # note: only GRACE exists (not NOGRACE)
+        # note: only NO_MINUIT exists (not MINUIT)
+        # note: Seems we should always have XML on
+        # note: Only HDF5 exists 
+        # note: Only LAPACK exists
         def get_extra_cxx_flags(self): 
             return []
     

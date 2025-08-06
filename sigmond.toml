@@ -8,20 +8,22 @@ default_file_format = "hdf5"
 enable_minuit = false
 enable_grace = false
 verbose = true
-build_jobs = 0           # Number of parallel build jobs (0 = auto-detect)
-batch_install_dir = "~/.local/bin"   # Custom install directory for sigmond_batch (empty = default bin/)
-query_install_dir = "~/.local/bin"   # Custom install directory for sigmond_query (empty = default bin/)
+build_jobs = 0             # Number of parallel build jobs (0 = auto-detect)
+batch_install_dir = ""     # Custom install directory for sigmond_batch (empty = default bin/)
+query_install_dir = ""     # Custom install directory for sigmond_query (empty = default bin/)
 
 [libraries]
 # Manual library paths (only specify if auto-detection fails)
 
 [libraries.hdf5]
-include_dirs = []
-library_dirs = []
+root_dir = "~/.local/"              # Directory containing /include and /lib subdirectories
+                           # with HDF5 headers and libraries
+                    
+[libraries.blas]
+library_path = "ola"          # Path to BLAS .so/dylib file (e.g. libopenblas.so)
 
 [libraries.lapack]
-include_dirs = []
-library_dirs = []
+library_path = "bola"          # Path to LAPACK .so/dylib file (e.g. libopenblas.so)
 
 [libraries.accelerate]
 framework_dirs = []

@@ -82,8 +82,9 @@ class SigmondConfig:
                 'query_install_dir': ''
             },
             'libraries': {
-                'hdf5': {'hdf5_root': ''},
-                'lapack': {'include_dirs': [], 'library_dirs': []},
+                'hdf5': {'root_dir': ''},
+                'blas': {'library_path': ''},
+                'lapack': {'library_path': ''},
                 'accelerate': {'framework_dirs': []},
                 'minuit2': {'include_dirs': [], 'library_dirs': []},
                 'grace': {'include_dirs': [], 'library_dirs': []}
@@ -165,6 +166,11 @@ class SigmondConfig:
             args.append('-DSKIP_SIGMOND_QUERY=ON')
         if self.config['build']['skip_batch']:
             args.append('-DSKIP_SIGMOND_BATCH=ON')
+            
+        # Verbose output
+        if self.config['build']['verbose']:
+            args.append('-DSIGMOND_VERBOSE=ON') # not currently used
+            args.append('-DCMAKE_FIND_DEBUG_MODE=ON')
         
         # Custom install directories
         if self.config['build']['batch_install_dir']:
@@ -175,18 +181,20 @@ class SigmondConfig:
         # HDF5 root path (if specified)
         if 'hdf5' in self.config['libraries']:
             hdf5_config = self.config['libraries']['hdf5']
-            if hdf5_config.get('hdf5_root'):
-                args.append(f'-DHDF5_ROOT={hdf5_config["hdf5_root"]}')
+            if hdf5_config.get('root_dir'):
+                args.append(f'-DHDF5_DIR={hdf5_config["root_dir"]}')
+                
+        # BLAS manual library paths
+        if 'blas' in self.config['libraries']:
+            blas_config = self.config['libraries']['blas']
+            if blas_config.get('library_path'):
+                args.append(f'-DBLAS_LIBRARIES={blas_config["library_path"]}')
         
         # LAPACK manual library paths
         if 'lapack' in self.config['libraries']:
             lib_config = self.config['libraries']['lapack']
-            if lib_config.get('include_dirs'):
-                inc_dirs = ';'.join(lib_config['include_dirs'])
-                args.append(f'-DSIGMOND_LAPACK_INCLUDE_DIR={inc_dirs}')
-            if lib_config.get('library_dirs'):
-                lib_dirs = ';'.join(lib_config['library_dirs'])
-                args.append(f'-DSIGMOND_LAPACK_LIBRARY_DIR={lib_dirs}')
+            if lib_config.get('library_path'):
+                args.append(f'-DLAPACK_LIBRARIES={lib_config["library_path"]}')
         
         # Optional libraries (only if enabled)
         if self.config['build']['enable_minuit'] and 'minuit2' in self.config['libraries']:
@@ -238,22 +246,15 @@ class SigmondConfig:
         file_format = self.config['build']['default_file_format'].lower()
         if file_format == 'fstream':
             definitions.append('DEFAULT_FSTREAM')
-        else:  # default to hdf5
-            definitions.append('DEFAULT_HDF5')
         
         # Always include these for current build
-        definitions.extend(['NOGRACE', 'NO_MINUIT', 'NOXML', 'HDF5', 'LAPACK'])
+        definitions.extend(['XML', 'HDF5', 'LAPACK'])
         
         # Optional features
-        if self.config['build']['enable_minuit']:
-            definitions.remove('NO_MINUIT')  # Remove the disable flag
+        if not self.config['build']['enable_minuit']:
+            definitions.append('NO_MINUIT')  # Remove the disable flag
         if self.config['build']['enable_grace']:
-            definitions.remove('NOGRACE')   # Remove the disable flag
-        
-        # Check if we're building batch executable for XML support
-        building_batch = not self.config['build']['skip_batch']
-        if building_batch:
-            definitions.remove('NOXML')     # Remove the disable flag
+            definitions.append('GRACE')  # Add Grace support for plotting
         
         return definitions
     
@@ -369,7 +370,7 @@ default_file_format = "hdf5"
 enable_minuit = false
 enable_grace = false
 verbose = false
-build_jobs = {cpu_count}           # Number of parallel build jobs (0 = auto-detect)
+build_jobs = 0             # Number of parallel build jobs (0 = auto-detect)
 batch_install_dir = ""     # Custom install directory for sigmond_batch (empty = default bin/)
 query_install_dir = ""     # Custom install directory for sigmond_query (empty = default bin/)
 
@@ -377,11 +378,14 @@ query_install_dir = ""     # Custom install directory for sigmond_query (empty =
 # Manual library paths (only specify if auto-detection fails)
 
 [libraries.hdf5]
-hdf5_root = ""
+root_dir = ""              # Directory containing /include and /lib subdirectories
+                           # with HDF5 headers and libraries
+                    
+[libraries.blas]
+library_path = ""          # Path to BLAS .so/dylib file (e.g. libopenblas.so)
 
 [libraries.lapack]
-include_dirs = []
-library_dirs = []
+library_path = ""          # Path to LAPACK .so/dylib file (e.g. libopenblas.so)
 
 [libraries.accelerate]
 framework_dirs = []

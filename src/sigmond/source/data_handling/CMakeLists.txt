@@ -8,6 +8,10 @@ add_library(data_handling SHARED bins_info.cc
    io_handler_hdf5.cc 
 	obs_get_handler.cc 
 	vev_data_handler.cc)
+
+# Link to dependencies
+target_link_libraries(data_handling PUBLIC observables analysis)
+
 target_precompile_headers(data_handling PUBLIC array.h    
    bins_handler.h         
    bins_info.h            

@@ -2,39 +2,50 @@ set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
 project(sigmond) #CMAKE_CXX_COMPILER set this using python
 cmake_minimum_required(VERSION 3.4...3.18)
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}" ${CMAKE_MODULE_PATH})
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyPackage.cmake)
 
 #set(CMAKE_BUILD_TYPE Debug)
 
 set(BUILD_SHARED_LIBS OFF)
 
-# Embed conda's lib directory as an RPATH on macOS so that @rpath references
-# inside HDF5 / LAPACK / etc. resolve correctly at runtime.
-if(APPLE AND DEFINED ENV{CONDA_PREFIX} AND NOT "$ENV{CONDA_PREFIX}" STREQUAL "")
-  set(_conda_prefix "$ENV{CONDA_PREFIX}")
-  set(_conda_lib     "${_conda_prefix}/lib")
-  message(STATUS "Conda detected at: ${_conda_prefix}")
-  message(STATUS "Embedding RPATH to: ${_conda_lib}")
+# Add conda root dir to CMAKE_PREFIX_PATH to aid find_package
+if(DEFINED ENV{CONDA_PREFIX} AND NOT "$ENV{CONDA_PREFIX}" STREQUAL "")
+    set(_conda_prefix "$ENV{CONDA_PREFIX}")
+    set(_conda_lib     "${_conda_prefix}/lib")
+    message(STATUS "Conda detected at: ${_conda_prefix}")
+    # Help CMake discover packages installed in the environment
+    list(APPEND CMAKE_PREFIX_PATH "${_conda_prefix}")
 
-  # Help CMake discover packages installed in the environment
-  list(APPEND CMAKE_PREFIX_PATH "${_conda_prefix}")
-
-  # Write the path into every binary produced by this directory
-  set(CMAKE_INSTALL_RPATH "${_conda_lib}")
-  set(CMAKE_BUILD_RPATH   "${_conda_lib}")
-  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
-  set(CMAKE_MACOSX_RPATH ON)
-  # Force CMake to actually use the rpath settings
-  set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
+    if(APPLE)
+        # Embed conda's lib directory as an RPATH on macOS so that @rpath references
+        # inside HDF5 / LAPACK / etc. resolve correctly at runtime.
+        set(CMAKE_INSTALL_RPATH "${_conda_lib}")
+        set(CMAKE_BUILD_RPATH   "${_conda_lib}")
+        set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
+        set(CMAKE_MACOSX_RPATH ON)
+        # Force CMake to actually use the rpath settings
+        set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
+    endif()
 endif()
 
 
 find_package(Python COMPONENTS Interpreter Development)
 
-message("${Python_LIBRARY_DIRS}")
 find_package(pybind11 REQUIRED 
                       HINTS "${Python_LIBRARY_DIRS}/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages"
 			    "/usr/local/lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/dist-packages"
 			)
+
+if(pybind11_FOUND)
+    message(STATUS "Found pybind11: ${pybind11_VERSION}")
+    if(pybind11_INCLUDE_DIR)
+        message(STATUS "pybind11 include directory: ${pybind11_INCLUDE_DIR}")
+    endif()
+    get_target_property(pybind11_includes pybind11::headers INTERFACE_INCLUDE_DIRECTORIES)
+    if(pybind11_includes)
+        message(STATUS "pybind11 interface includes: ${pybind11_includes}")
+    endif()
+endif()
 
 include_directories("${Python_INCLUDE_DIRS}")
 
@@ -47,215 +58,132 @@ include_directories("${PROJECT_SOURCE_DIR}/fitting")
 include_directories("${PROJECT_SOURCE_DIR}/plotting")
 include_directories("${PROJECT_SOURCE_DIR}/pysigmond")
 
-# === SIGMOND CONFIGURATION SYSTEM ===
+# === LIBRARY DETECTION ===
 
-# Debug configuration
-function(sigmond_debug_config)
-    message(STATUS "=== Sigmond Build Configuration ===")
-    message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
-    message(STATUS "C++ Compiler: ${CMAKE_CXX_COMPILER}")
-    message(STATUS "C++ Flags: ${CMAKE_CXX_FLAGS}")
-    message(STATUS "Skip Query: ${SKIP_SIGMOND_QUERY}")
-    message(STATUS "Skip Batch: ${SKIP_SIGMOND_BATCH}")
-    message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
-endfunction()
-
-# Unified library finder with cross-platform support
-function(sigmond_find_library LIB_NAME)
-    # Parse arguments: HEADER library_names... [REQUIRED] [APPLE_FRAMEWORK framework_name]
-    cmake_parse_arguments(ARG "REQUIRED" "HEADER;APPLE_FRAMEWORK" "LIBRARIES" ${ARGN})
-    
+# Simple function to check for manual library paths from TOML config
+function(check_manual_paths LIB_NAME)
     string(TOUPPER ${LIB_NAME} LIB_UPPER)
-    set(${LIB_UPPER}_FOUND FALSE PARENT_SCOPE)
-    
-    message(STATUS "--- Finding ${LIB_NAME} library ---")
-    
-    # Check for manual configuration
     set(MANUAL_INCLUDE_VAR "SIGMOND_${LIB_UPPER}_INCLUDE_DIR")
     set(MANUAL_LIBRARY_VAR "SIGMOND_${LIB_UPPER}_LIBRARY_DIR")
     
-    # Manual path configuration
     if(DEFINED ${MANUAL_LIBRARY_VAR})
-        message(STATUS "Using manual paths for ${LIB_NAME}")
-        if(DEFINED ${MANUAL_INCLUDE_VAR})
-            message(STATUS "  Include dirs: ${${MANUAL_INCLUDE_VAR}}")
-        endif()
-        message(STATUS "  Library dirs: ${${MANUAL_LIBRARY_VAR}}")
-        
-        # Try to find each library in the specified directories
-        set(FOUND_LIBRARIES)
-        foreach(lib_name ${ARG_LIBRARIES})
-            find_library(${LIB_UPPER}_${lib_name}_LIB ${lib_name} HINTS ${${MANUAL_LIBRARY_VAR}} NO_DEFAULT_PATH)
-            if(${LIB_UPPER}_${lib_name}_LIB)
-                list(APPEND FOUND_LIBRARIES ${${LIB_UPPER}_${lib_name}_LIB})
-            endif()
-        endforeach()
-        
-        # Find header if specified
-        if(ARG_HEADER AND DEFINED ${MANUAL_INCLUDE_VAR})
-            find_path(${LIB_UPPER}_INCLUDE_DIR ${ARG_HEADER} HINTS ${${MANUAL_INCLUDE_VAR}} NO_DEFAULT_PATH)
-        endif()
-        
-        if(FOUND_LIBRARIES)
-            set(${LIB_UPPER}_FOUND TRUE PARENT_SCOPE)
-            set(${LIB_UPPER}_LIBRARIES ${FOUND_LIBRARIES} PARENT_SCOPE)
-            sigmond_create_imported_target(${LIB_NAME} "${FOUND_LIBRARIES}" "${${LIB_UPPER}_INCLUDE_DIR}")
-            message(STATUS "Found ${LIB_NAME} (manual): ${FOUND_LIBRARIES}")
-            return()
-        endif()
-    endif()
-    
-    # Auto-detection
-    message(STATUS "Auto-detecting ${LIB_NAME}")
-    set(${LIB_UPPER}_AUTO_DETECT TRUE PARENT_SCOPE)
-endfunction()
-
-# Create imported target
-function(sigmond_create_imported_target LIB_NAME LIBRARIES INCLUDE_DIR)
-    string(TOUPPER ${LIB_NAME} LIB_UPPER)
-    
-    if(NOT TARGET ${LIB_NAME}::${LIB_NAME})
-        add_library(${LIB_NAME}::${LIB_NAME} INTERFACE IMPORTED)
-        if(LIBRARIES)
-            set_target_properties(${LIB_NAME}::${LIB_NAME} PROPERTIES
-                INTERFACE_LINK_LIBRARIES "${LIBRARIES}")
-        endif()
-        if(INCLUDE_DIR)
-            set_target_properties(${LIB_NAME}::${LIB_NAME} PROPERTIES
-                INTERFACE_INCLUDE_DIRECTORIES "${INCLUDE_DIR}")
-        endif()
+        message(STATUS "Using manual paths for ${LIB_NAME}: ${${MANUAL_LIBRARY_VAR}}")
+        set(${LIB_UPPER}_ROOT "${${MANUAL_LIBRARY_VAR}}" PARENT_SCOPE)
     endif()
 endfunction()
-
-# macOS-specific framework finder
-function(sigmond_find_macos_framework FRAMEWORK_NAME)
-    if(APPLE)
-        string(TOUPPER ${FRAMEWORK_NAME} FRAMEWORK_UPPER)
-        set(MANUAL_FRAMEWORK_VAR "SIGMOND_${FRAMEWORK_UPPER}_FRAMEWORK_DIR")
-        
-        if(DEFINED ${MANUAL_FRAMEWORK_VAR})
-            find_library(${FRAMEWORK_UPPER}_FRAMEWORK ${FRAMEWORK_NAME} 
-                HINTS ${${MANUAL_FRAMEWORK_VAR}} NO_DEFAULT_PATH)
-        else()
-            find_library(${FRAMEWORK_UPPER}_FRAMEWORK ${FRAMEWORK_NAME})
-        endif()
-        
-        if(${FRAMEWORK_UPPER}_FRAMEWORK)
-            set(${FRAMEWORK_UPPER}_FOUND TRUE PARENT_SCOPE)
-            message(STATUS "Found ${FRAMEWORK_NAME} framework: ${${FRAMEWORK_UPPER}_FRAMEWORK}")
-        endif()
-    endif()
-endfunction()
-
-sigmond_debug_config()
 
 # === LIBRARY DETECTION ===
 
 # HDF5 (required) - Use find_package with HDF5_ROOT support
-find_package(HDF5 COMPONENTS C REQUIRED)
-if(HDF5_FOUND)
-    message(STATUS "Found HDF5: ${HDF5_LIBRARIES}")
-    message(STATUS "HDF5 include dirs: ${HDF5_INCLUDE_DIRS}")
-    if(DEFINED HDF5_ROOT)
-        message(STATUS "HDF5_ROOT was set to: ${HDF5_ROOT}")
-    endif()
-else()
-    message(FATAL_ERROR "HDF5 not found. Please specify HDF5_ROOT in sigmond.toml or install HDF5 development packages.")
-endif()
+# find_package(HDF5 COMPONENTS C REQUIRED)
+# if(HDF5_FOUND)
+#     message(STATUS "Found HDF5: ${HDF5_LIBRARIES}")
+#     message(STATUS "HDF5 include dirs: ${HDF5_INCLUDE_DIRS}")
+#     if(DEFINED HDF5_ROOT)
+#         message(STATUS "HDF5_ROOT was set to: ${HDF5_ROOT}")
+#     endif()
+# else()
+#     message(FATAL_ERROR "HDF5 not found. Please specify root_dir in sigmond.toml or install HDF5 development packages.")
+# endif()
+
+# if(TARGET hdf5::hdf5)
+#   get_target_property(_incs hdf5::hdf5 INTERFACE_INCLUDE_DIRECTORIES)
+#   get_target_property(_loc  hdf5::hdf5 IMPORTED_LOCATION_RELEASE)
+#   message(STATUS "hdf5::hdf5 incs: ${_incs}")
+#   message(STATUS "hdf5::hdf5 lib : ${_loc}")
+# endif()
+require_package(HDF5
+    COMPONENTS C
+    REQUIRED
+    TARGETS HDF5::HDF5
+)
 
 # Set HDF5 includes globally for this project since multiple modules need it
 include_directories(${HDF5_INCLUDE_DIRS})
 
-# LAPACK (required) - Cross-platform with macOS Accelerate support
-sigmond_find_library(LAPACK LIBRARIES "lapack" "blas" REQUIRED)
-if(LAPACK_AUTO_DETECT)
-    if(APPLE)
-        # Try Accelerate framework first on macOS
-        sigmond_find_macos_framework(Accelerate)
-        if(ACCELERATE_FOUND)
-            sigmond_create_imported_target(LAPACK "${ACCELERATE_FRAMEWORK}" "")
-            set(LAPACK_FOUND TRUE)
-            message(STATUS "Found LAPACK via Accelerate framework: ${ACCELERATE_FRAMEWORK}")
-        endif()
-    endif()
-    
-    # Fallback to standard LAPACK detection
-    if(NOT LAPACK_FOUND)
-        find_package(LAPACK QUIET)
-        if(LAPACK_FOUND)
-            sigmond_create_imported_target(LAPACK "${LAPACK_LIBRARIES}" "")
-            message(STATUS "Found LAPACK (auto-detect): ${LAPACK_LIBRARIES}")
-        endif()
+# LAPACK (required)
+check_manual_paths(LAPACK)
+if(APPLE)
+    # Try Accelerate framework first on macOS
+    find_library(ACCELERATE_FRAMEWORK Accelerate)
+    if(ACCELERATE_FRAMEWORK)
+        set(LAPACK_FOUND TRUE)
+        set(LAPACK_LIBRARIES ${ACCELERATE_FRAMEWORK})
+        add_library(LAPACK::LAPACK INTERFACE IMPORTED)
+        set_target_properties(LAPACK::LAPACK PROPERTIES
+            INTERFACE_LINK_LIBRARIES "${ACCELERATE_FRAMEWORK}")
+        message(STATUS "Found LAPACK via Accelerate framework: ${ACCELERATE_FRAMEWORK}")
     endif()
 endif()
 
 if(NOT LAPACK_FOUND)
-    message(FATAL_ERROR "LAPACK not found. Please specify paths in sigmond.toml or install LAPACK development packages.")
+    # Find BLAS first since LAPACK depends on it
+    set(BLA_VENDOR OpenBLAS)
+    find_package(BLAS REQUIRED)
+    find_package(LAPACK REQUIRED)
+    message(STATUS "Found BLAS: ${BLAS_LIBRARIES}")
+    message(STATUS "Found LAPACK: ${LAPACK_LIBRARIES}")
 endif()
 
-# MINUIT2 (optional)
-sigmond_find_library(MINUIT2 HEADER "Minuit2/FCNBase.h" LIBRARIES "Minuit2")
-if(MINUIT2_AUTO_DETECT)
-    find_package(PkgConfig QUIET)
-    if(PKG_CONFIG_FOUND)
-        pkg_check_modules(MINUIT2 QUIET minuit2)
-        if(MINUIT2_FOUND)
-            sigmond_create_imported_target(MINUIT2 "${MINUIT2_LIBRARIES}" "${MINUIT2_INCLUDE_DIRS}")
-            message(STATUS "Found Minuit2 (pkg-config): ${MINUIT2_LIBRARIES}")
-        endif()
+# MINUIT2 (optional) 
+check_manual_paths(MINUIT2)
+find_package(PkgConfig QUIET)
+if(PKG_CONFIG_FOUND)
+    pkg_check_modules(MINUIT2 QUIET minuit2)
+    if(MINUIT2_FOUND)
+        message(STATUS "Found MINUIT2: ${MINUIT2_LIBRARIES}")
     endif()
 endif()
 
 # GRACE (optional)
-sigmond_find_library(GRACE HEADER "grace_np.h" LIBRARIES "grace_np")
-
-# === LIBRARY SUMMARY ===
-message(STATUS "=== Library Detection Summary ===")
-message(STATUS "HDF5_FOUND: ${HDF5_FOUND}")
-message(STATUS "LAPACK_FOUND: ${LAPACK_FOUND}")
-message(STATUS "MINUIT2_FOUND: ${MINUIT2_FOUND}")
-message(STATUS "GRACE_FOUND: ${GRACE_FOUND}")
-message(STATUS "=====================================")
+check_manual_paths(GRACE)
+find_library(GRACE_LIBRARY grace_np)
+find_path(GRACE_INCLUDE_DIR grace_np.h)
+if(GRACE_LIBRARY AND GRACE_INCLUDE_DIR)
+    set(GRACE_FOUND TRUE)
+    message(STATUS "Found GRACE: ${GRACE_LIBRARY}")
+endif()
 
 # === LINKING FUNCTIONS ===
 
-# Cross-platform library linking with automatic dependency resolution
+# Standard library linking function
 function(sigmond_link_libraries target_name)
-    # Always required libraries
+    # Required libraries
     target_link_libraries(${target_name} PRIVATE HDF5::HDF5)
-    target_link_libraries(${target_name} PRIVATE LAPACK::LAPACK)
     
-    # Optional libraries (only if found and enabled)
+    # Link BLAS and LAPACK properly
+    if(BLAS_LIBRARIES)
+        target_link_libraries(${target_name} PRIVATE ${BLAS_LIBRARIES})
+    elseif(TARGET BLAS::BLAS)
+        target_link_libraries(${target_name} PRIVATE BLAS::BLAS)
+    else()
+        # Fallback: link libraries directly by name
+        target_link_libraries(${target_name} PRIVATE -lblas)
+    endif()
+    
+    if(LAPACK_LIBRARIES)
+        target_link_libraries(${target_name} PRIVATE ${LAPACK_LIBRARIES})
+    elseif(TARGET LAPACK::LAPACK)
+        target_link_libraries(${target_name} PRIVATE LAPACK::LAPACK)
+    else()
+        # Fallback: link libraries directly by name
+        target_link_libraries(${target_name} PRIVATE -llapack)
+    endif()
+    
+    # Optional libraries
     if(MINUIT2_FOUND)
-        target_link_libraries(${target_name} PRIVATE MINUIT2::MINUIT2)
-        message(STATUS "${target_name}: Linked Minuit2")
+        target_link_libraries(${target_name} PRIVATE ${MINUIT2_LIBRARIES})
     endif()
     
     if(GRACE_FOUND)
-        target_link_libraries(${target_name} PRIVATE GRACE::GRACE)
-        message(STATUS "${target_name}: Linked Grace")
+        target_link_libraries(${target_name} PRIVATE ${GRACE_LIBRARY})
+        target_include_directories(${target_name} PRIVATE ${GRACE_INCLUDE_DIR})
     endif()
     
-    # Platform-specific linking
-    if(APPLE)
-        # Make sure conda's lib directory is embedded so @rpath can be resolved
-        if(DEFINED ENV{CONDA_PREFIX} AND NOT "$ENV{CONDA_PREFIX}" STREQUAL "")
-            set_target_properties(${target_name} PROPERTIES
-                BUILD_RPATH   "$ENV{CONDA_PREFIX}/lib"
-                INSTALL_RPATH "$ENV{CONDA_PREFIX}/lib")
-        endif()
-
-        set_target_properties(${target_name} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
-        # Only link gfortran if not using Accelerate framework
-        if(NOT ACCELERATE_FOUND)
-            target_link_libraries(${target_name} PRIVATE -lgfortran)
-        endif()
-    else()
-        # Link Fortran runtime for LAPACK on non-macOS systems
-        target_link_libraries(${target_name} PRIVATE -lgfortran)
-    endif()
-    
-    message(STATUS "${target_name}: Configured with all required libraries")
+    # Platform-specific linking for Fortran runtime
+    # if(NOT APPLE)
+    #     target_link_libraries(${target_name} PRIVATE -lgfortran)
+    # endif()
 endfunction()
 
 add_subdirectory(analysis)
@@ -264,6 +192,14 @@ add_subdirectory(fitting)
 add_subdirectory(observables)
 add_subdirectory(plotting)
 add_subdirectory(tasks)
+
+# Apply external library linking to all component libraries
+sigmond_link_libraries(analysis)
+sigmond_link_libraries(data_handling)
+sigmond_link_libraries(fitting) 
+sigmond_link_libraries(observables)
+sigmond_link_libraries(plotting)
+sigmond_link_libraries(tasks)
 
 #link_libraries(tasks_libs data_handling_lib analysis_libs fitting_libs observables_libs plotting_libs)
 
@@ -298,135 +234,22 @@ sigmond_link_libraries(sigmond)
 
 target_compile_definitions(sigmond PRIVATE VERSION_INFO=${VERSION_INFO})
 
-# --- Build sigmond batch executable (unless skipped) ---
+# Build executables (optional)
 option(SKIP_SIGMOND_BATCH "Skip building sigmond batch executable" OFF)
-message(STATUS "=== Executable Build Configuration ===")
-message(STATUS "SKIP_SIGMOND_BATCH: ${SKIP_SIGMOND_BATCH}")
-if(NOT SKIP_SIGMOND_BATCH)
-    message(STATUS "Building sigmond_batch executable")
-    # Source files for sigmond batch executable
-    set(SIGMOND_MAIN_SRCS
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/sigmond.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/scalar_defs.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/single_pivot.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/rolling_pivot.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/stopwatch.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/task_handler.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/task_check.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/task_fit.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/task_get_from_pivot.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/task_obsfunc.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/task_plot.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/task_print.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/task_rebin.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/task_rotate_corrs.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/task_utils.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/xml_handler.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/analysis/bootstrapper.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/analysis/histogram.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/analysis/matrix.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/analysis/mc_estimate.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/analysis/mcobs_handler.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/analysis/sampling_info.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/data_handling/bins_info.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/data_handling/byte_handler.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/data_handling/corr_data_handler.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/data_handling/ensemble_info.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/data_handling/filelist_info.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/data_handling/io_handler_fstream.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/data_handling/io_handler_hdf5.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/data_handling/obs_get_handler.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/data_handling/vev_data_handler.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/observables/basic_laph_operator_info.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/observables/diag_corr_set.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/observables/correlator_info.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/observables/correlator_matrix_info.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/observables/encoder.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/observables/gen_irrep_operator_info.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/observables/mcobs_info.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/observables/momenta.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/observables/operator_info.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/plotting/create_plots.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/plotting/grace_plot.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/fitting/chisq_anisotropy.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/fitting/chisq_base.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/fitting/chisq_disp.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/fitting/chisq_fit.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/fitting/chisq_tcorr.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/fitting/chisq_logtcorr.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/fitting/lmder.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/fitting/minimizer.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/fitting/minpack.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/fitting/model_logtcorr.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/fitting/model_tcorr.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/fitting/nl2sol.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/fitting/prior.cc
-    )
-
-    add_executable(sigmond_batch ${SIGMOND_MAIN_SRCS})
-    sigmond_link_libraries(sigmond_batch)
-    
-    # Install with custom directory if specified
-    if(DEFINED SIGMOND_BATCH_INSTALL_DIR)
-        install(TARGETS sigmond_batch DESTINATION ${SIGMOND_BATCH_INSTALL_DIR})
-        message(STATUS "sigmond_batch will install to: ${SIGMOND_BATCH_INSTALL_DIR}")
-    else()
-        install(TARGETS sigmond_batch DESTINATION bin)
-    endif()
-    message(STATUS "sigmond_batch executable will be built and installed")
-else()
-    message(STATUS "sigmond_batch executable is SKIPPED")
-endif()
-
-# --- Build sigmond_query executable (unless skipped) ---
 option(SKIP_SIGMOND_QUERY "Skip building sigmond_query executable" OFF)
-message(STATUS "SKIP_SIGMOND_QUERY: ${SKIP_SIGMOND_QUERY}")
+
+if(NOT SKIP_SIGMOND_BATCH)
+    add_executable(sigmond_batch tasks/sigmond.cc)
+    target_link_libraries(sigmond_batch PRIVATE 
+        tasks analysis data_handling fitting observables plotting)
+    sigmond_link_libraries(sigmond_batch)
+    install(TARGETS sigmond_batch DESTINATION bin)
+endif()
+
 if(NOT SKIP_SIGMOND_QUERY)
-    message(STATUS "Building sigmond_query executable")
-    # Source files for sigmond_query
-    set(SIGQUERY_SRCS
-        ${CMAKE_CURRENT_SOURCE_DIR}/data_handling/sigmond_query.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/observables/basic_laph_operator_info.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/data_handling/byte_handler.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/observables/correlator_info.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/observables/correlator_matrix_info.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/observables/encoder.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/observables/gen_irrep_operator_info.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/data_handling/io_handler_fstream.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/data_handling/io_handler_hdf5.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/analysis/matrix.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/observables/mcobs_info.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/observables/momenta.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/observables/operator_info.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/scalar_defs.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/tasks/xml_handler.cc
-    )
-
-    add_executable(sigmond_query ${SIGQUERY_SRCS})
+    add_executable(sigmond_query data_handling/sigmond_query.cc)
+    target_link_libraries(sigmond_query PRIVATE 
+        data_handling observables tasks analysis)
     sigmond_link_libraries(sigmond_query)
-    
-    # Install with custom directory if specified
-    if(DEFINED SIGMOND_QUERY_INSTALL_DIR)
-        install(TARGETS sigmond_query DESTINATION ${SIGMOND_QUERY_INSTALL_DIR})
-        message(STATUS "sigmond_query will install to: ${SIGMOND_QUERY_INSTALL_DIR}")
-    else()
-        install(TARGETS sigmond_query DESTINATION bin)
-    endif()
-    message(STATUS "sigmond_query executable will be built and installed")
-else()
-    message(STATUS "sigmond_query executable is SKIPPED")
+    install(TARGETS sigmond_query DESTINATION bin)
 endif()
-
-# Final build summary
-message(STATUS "=== Final Build Summary ===")
-message(STATUS "Targets to build:")
-if(TARGET sigmond)
-    message(STATUS "  - sigmond (Python extension)")
-endif()
-if(TARGET sigmond_batch)
-    message(STATUS "  - sigmond_batch (batch executable)")
-endif()
-if(TARGET sigmond_query)
-    message(STATUS "  - sigmond_query (query executable)")
-endif()
-message(STATUS "===============================")
