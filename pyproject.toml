@@ -13,7 +13,8 @@ dependencies = [
 ]
 name = "sigmond"
 version = "0.0.0.dev1"
-license = {file = "LICENSE"}
+license = "MIT"
+dynamic = ["classifiers"]
 
 description = "Python package for analyzing correlation functions computed from lattice QCD."
 authors = [

@@ -2,11 +2,12 @@ set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
 project(sigmond) #CMAKE_CXX_COMPILER set this using python
 cmake_minimum_required(VERSION 3.4...3.18)
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}" ${CMAKE_MODULE_PATH})
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyPackage.cmake)
 
 #set(CMAKE_BUILD_TYPE Debug)
 
 set(BUILD_SHARED_LIBS OFF)
+# Enable Position Independent Code for static libraries
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Add conda root dir to CMAKE_PREFIX_PATH to aid find_package
 if(DEFINED ENV{CONDA_PREFIX} AND NOT "$ENV{CONDA_PREFIX}" STREQUAL "")
@@ -58,57 +59,31 @@ include_directories("${PROJECT_SOURCE_DIR}/fitting")
 include_directories("${PROJECT_SOURCE_DIR}/plotting")
 include_directories("${PROJECT_SOURCE_DIR}/pysigmond")
 
-# === LIBRARY DETECTION ===
-
-# Simple function to check for manual library paths from TOML config
-function(check_manual_paths LIB_NAME)
-    string(TOUPPER ${LIB_NAME} LIB_UPPER)
-    set(MANUAL_INCLUDE_VAR "SIGMOND_${LIB_UPPER}_INCLUDE_DIR")
-    set(MANUAL_LIBRARY_VAR "SIGMOND_${LIB_UPPER}_LIBRARY_DIR")
-    
-    if(DEFINED ${MANUAL_LIBRARY_VAR})
-        message(STATUS "Using manual paths for ${LIB_NAME}: ${${MANUAL_LIBRARY_VAR}}")
-        set(${LIB_UPPER}_ROOT "${${MANUAL_LIBRARY_VAR}}" PARENT_SCOPE)
-    endif()
-endfunction()
 
 # === LIBRARY DETECTION ===
 
 # HDF5 (required) - Use find_package with HDF5_ROOT support
-# find_package(HDF5 COMPONENTS C REQUIRED)
-# if(HDF5_FOUND)
-#     message(STATUS "Found HDF5: ${HDF5_LIBRARIES}")
-#     message(STATUS "HDF5 include dirs: ${HDF5_INCLUDE_DIRS}")
-#     if(DEFINED HDF5_ROOT)
-#         message(STATUS "HDF5_ROOT was set to: ${HDF5_ROOT}")
-#     endif()
-# else()
-#     message(FATAL_ERROR "HDF5 not found. Please specify root_dir in sigmond.toml or install HDF5 development packages.")
-# endif()
-
-# if(TARGET hdf5::hdf5)
-#   get_target_property(_incs hdf5::hdf5 INTERFACE_INCLUDE_DIRECTORIES)
-#   get_target_property(_loc  hdf5::hdf5 IMPORTED_LOCATION_RELEASE)
-#   message(STATUS "hdf5::hdf5 incs: ${_incs}")
-#   message(STATUS "hdf5::hdf5 lib : ${_loc}")
-# endif()
-require_package(HDF5
-    COMPONENTS C
-    REQUIRED
-    TARGETS HDF5::HDF5
-)
+find_package(HDF5 COMPONENTS C REQUIRED)
+if(HDF5_FOUND)
+    message(STATUS "HDF5 include dirs: ${HDF5_INCLUDE_DIRS}")
+    if(DEFINED HDF5_ROOT)
+        message(STATUS "HDF5_ROOT was set to: ${HDF5_ROOT}")
+    endif()
+else()
+    message(FATAL_ERROR "HDF5 not found. Please specify root_dir in sigmond.toml or install HDF5 development packages.")
+endif()
 
 # Set HDF5 includes globally for this project since multiple modules need it
 include_directories(${HDF5_INCLUDE_DIRS})
 
 # LAPACK (required)
-check_manual_paths(LAPACK)
 if(APPLE)
     # Try Accelerate framework first on macOS
-    find_library(ACCELERATE_FRAMEWORK Accelerate)
+    find_library(ACCELERATE_FRAMEWORK Accelerate HINTS ${SIGMOND_ACCELERATE_FRAMEWORK_DIR})
     if(ACCELERATE_FRAMEWORK)
         set(LAPACK_FOUND TRUE)
         set(LAPACK_LIBRARIES ${ACCELERATE_FRAMEWORK})
+        set(BLAS_LIBRARIES   ${ACCELERATE_FRAMEWORK})
         add_library(LAPACK::LAPACK INTERFACE IMPORTED)
         set_target_properties(LAPACK::LAPACK PROPERTIES
             INTERFACE_LINK_LIBRARIES "${ACCELERATE_FRAMEWORK}")
@@ -121,27 +96,66 @@ if(NOT LAPACK_FOUND)
     set(BLA_VENDOR OpenBLAS)
     find_package(BLAS REQUIRED)
     find_package(LAPACK REQUIRED)
-    message(STATUS "Found BLAS: ${BLAS_LIBRARIES}")
-    message(STATUS "Found LAPACK: ${LAPACK_LIBRARIES}")
 endif()
 
 # MINUIT2 (optional) 
-check_manual_paths(MINUIT2)
-find_package(PkgConfig QUIET)
-if(PKG_CONFIG_FOUND)
-    pkg_check_modules(MINUIT2 QUIET minuit2)
-    if(MINUIT2_FOUND)
-        message(STATUS "Found MINUIT2: ${MINUIT2_LIBRARIES}")
+# check_manual_paths(MINUIT2)
+if(ENABLE_MINUIT)
+    find_path(MINUIT2_INCLUDE_DIR
+        NAMES Minuit2/FCNBase.h
+        HINTS ${SIGMOND_MINUIT2_INCLUDE_DIR}
+        PATH_SUFFIXES Minuit2
+    )
+    find_library(MINUIT2_LIBRARY
+        NAMES Minuit2 minuit2
+        HINTS ${SIGMOND_MINUIT2_LIBRARY_DIR}
+    )
+    if(MINUIT2_INCLUDE_DIR AND MINUIT2_LIBRARY)
+        set(MINUIT2_FOUND TRUE)
+        add_library(Minuit2::Minuit2 UNKNOWN IMPORTED)
+        set_target_properties(Minuit2::Minuit2 PROPERTIES
+            IMPORTED_LOCATION             "${MINUIT2_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES "${MINUIT2_INCLUDE_DIR}"
+        )
+        message(STATUS "Found standalone Minuit2: ${MINUIT2_LIBRARY}")
+        message(STATUS "Minuit2 include dirs: ${MINUIT2_INCLUDE_DIR}")
+    else()
+        find_package(ROOT QUIET COMPONENTS Minuit2)
+        if(TARGET ROOT::Minuit2)
+            set(MINUIT2_FOUND TRUE)
+            add_library(Minuit2::Minuit2 ALIAS ROOT::Minuit2)
+            message(STATUS "Using Minuit2 from ROOT (ROOT::Minuit2)")
+        endif()
+    endif()
+    if(NOT MINUIT2_FOUND)
+        message(FATAL_ERROR "Minuit2 not found. Please specify include_dir and library_dir in sigmond.toml or install Minuit2 development packages.")
     endif()
 endif()
 
 # GRACE (optional)
-check_manual_paths(GRACE)
-find_library(GRACE_LIBRARY grace_np)
-find_path(GRACE_INCLUDE_DIR grace_np.h)
-if(GRACE_LIBRARY AND GRACE_INCLUDE_DIR)
-    set(GRACE_FOUND TRUE)
-    message(STATUS "Found GRACE: ${GRACE_LIBRARY}")
+if(ENABLE_GRACE)
+    find_path(GRACE_INCLUDE_DIR
+        NAMES grace_np.h grace.h
+        HINTS
+            ${SIGMOND_GRACE_INCLUDE_DIR}
+    )
+    find_library(GRACE_LIBRARY
+        NAMES grace_np grace
+        HINTS
+            ${SIGMOND_GRACE_LIBRARY_DIR}
+    )
+    if(GRACE_LIBRARY AND GRACE_INCLUDE_DIR)
+        set(GRACE_FOUND TRUE)
+        add_library(Grace::Grace UNKNOWN IMPORTED)
+        set_target_properties(Grace::Grace PROPERTIES
+            IMPORTED_LOCATION             "${GRACE_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES "${GRACE_INCLUDE_DIR}"
+        )
+        message(STATUS "Found GRACE: ${GRACE_LIBRARY}")
+        message(STATUS "GRACE include dirs: ${GRACE_INCLUDE_DIR}")
+    else()
+        message(FATAL_ERROR "GRACE not found. Please specify include_dir and library_dir in sigmond.toml or install GRACE development packages.")
+    endif()
 endif()
 
 # === LINKING FUNCTIONS ===
@@ -151,33 +165,28 @@ function(sigmond_link_libraries target_name)
     # Required libraries
     target_link_libraries(${target_name} PRIVATE HDF5::HDF5)
     
-    # Link BLAS and LAPACK properly
-    if(BLAS_LIBRARIES)
-        target_link_libraries(${target_name} PRIVATE ${BLAS_LIBRARIES})
-    elseif(TARGET BLAS::BLAS)
-        target_link_libraries(${target_name} PRIVATE BLAS::BLAS)
-    else()
-        # Fallback: link libraries directly by name
-        target_link_libraries(${target_name} PRIVATE -lblas)
-    endif()
-    
-    if(LAPACK_LIBRARIES)
-        target_link_libraries(${target_name} PRIVATE ${LAPACK_LIBRARIES})
-    elseif(TARGET LAPACK::LAPACK)
+    # If we have an imported LAPACK target, it should carry what’s needed (e.g., Accelerate)
+    if(TARGET LAPACK::LAPACK)
         target_link_libraries(${target_name} PRIVATE LAPACK::LAPACK)
     else()
-        # Fallback: link libraries directly by name
+        # Otherwise, add BLAS then LAPACK from variables or fall back
+        if(BLAS_LIBRARIES)
+        target_link_libraries(${target_name} PRIVATE ${BLAS_LIBRARIES})
+        elseif(TARGET BLAS::BLAS)
+        target_link_libraries(${target_name} PRIVATE BLAS::BLAS)
+        else()
+        target_link_libraries(${target_name} PRIVATE -lblas)
+        endif()
+
+        if(LAPACK_LIBRARIES)
+        target_link_libraries(${target_name} PRIVATE ${LAPACK_LIBRARIES})
+        else()
         target_link_libraries(${target_name} PRIVATE -llapack)
+        endif()
     endif()
-    
-    # Optional libraries
+
     if(MINUIT2_FOUND)
-        target_link_libraries(${target_name} PRIVATE ${MINUIT2_LIBRARIES})
-    endif()
-    
-    if(GRACE_FOUND)
-        target_link_libraries(${target_name} PRIVATE ${GRACE_LIBRARY})
-        target_include_directories(${target_name} PRIVATE ${GRACE_INCLUDE_DIR})
+        target_link_libraries(${target_name} PRIVATE Minuit2::Minuit2)
     endif()
     
     # Platform-specific linking for Fortran runtime
@@ -196,10 +205,16 @@ add_subdirectory(tasks)
 # Apply external library linking to all component libraries
 sigmond_link_libraries(analysis)
 sigmond_link_libraries(data_handling)
-sigmond_link_libraries(fitting) 
 sigmond_link_libraries(observables)
-sigmond_link_libraries(plotting)
 sigmond_link_libraries(tasks)
+sigmond_link_libraries(fitting)
+sigmond_link_libraries(plotting)
+
+if(GRACE_FOUND)
+    target_link_libraries(plotting PRIVATE Grace::Grace)
+    target_include_directories(plotting PRIVATE ${GRACE_INCLUDE_DIR})
+endif()
+
 
 #link_libraries(tasks_libs data_handling_lib analysis_libs fitting_libs observables_libs plotting_libs)
 

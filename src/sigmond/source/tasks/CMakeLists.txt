@@ -1,4 +1,4 @@
-add_library(tasks SHARED 
+add_library(tasks STATIC 
    pivoter.h
    scalar_defs.cc
    single_pivot.cc       

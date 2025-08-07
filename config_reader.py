@@ -85,9 +85,9 @@ class SigmondConfig:
                 'hdf5': {'root_dir': ''},
                 'blas': {'library_path': ''},
                 'lapack': {'library_path': ''},
-                'accelerate': {'framework_dirs': []},
-                'minuit2': {'include_dirs': [], 'library_dirs': []},
-                'grace': {'include_dirs': [], 'library_dirs': []}
+                'accelerate': {'framework_dir': ''},
+                'minuit2': {'include_dir': '', 'library_dir': ''},
+                'grace': {'include_dir': '', 'library_dir': ''}
             },
             'compiler': {
                 'cxx_flags': []
@@ -135,12 +135,12 @@ class SigmondConfig:
         # Validate optional feature consistency
         if build_config.get('enable_minuit', False):
             minuit_config = self.config.get('libraries', {}).get('minuit2', {})
-            if not minuit_config.get('include_dirs') and not minuit_config.get('library_dirs'):
+            if not minuit_config.get('include_dir') and not minuit_config.get('library_dir'):
                 warnings.append("Minuit2 is enabled but no library paths specified. Auto-detection will be attempted.")
         
         if build_config.get('enable_grace', False):
             grace_config = self.config.get('libraries', {}).get('grace', {})
-            if not grace_config.get('include_dirs') and not grace_config.get('library_dirs'):
+            if not grace_config.get('include_dir') and not grace_config.get('library_dir'):
                 warnings.append("Grace is enabled but no library paths specified. Auto-detection will be attempted.")
         
         # Check for potentially problematic configurations
@@ -166,6 +166,10 @@ class SigmondConfig:
             args.append('-DSKIP_SIGMOND_QUERY=ON')
         if self.config['build']['skip_batch']:
             args.append('-DSKIP_SIGMOND_BATCH=ON')
+        if self.config['build']['enable_minuit']:
+            args.append('-DENABLE_MINUIT=ON')
+        if self.config['build']['enable_grace']:
+            args.append('-DENABLE_GRACE=ON')
             
         # Verbose output
         if self.config['build']['verbose']:
@@ -199,28 +203,23 @@ class SigmondConfig:
         # Optional libraries (only if enabled)
         if self.config['build']['enable_minuit'] and 'minuit2' in self.config['libraries']:
             lib_config = self.config['libraries']['minuit2']
-            if lib_config.get('include_dirs'):
-                inc_dirs = ';'.join(lib_config['include_dirs'])
-                args.append(f'-DSIGMOND_MINUIT2_INCLUDE_DIR={inc_dirs}')
-            if lib_config.get('library_dirs'):
-                lib_dirs = ';'.join(lib_config['library_dirs'])
-                args.append(f'-DSIGMOND_MINUIT2_LIBRARY_DIR={lib_dirs}')
+            if lib_config.get('include_dir'):
+                args.append(f'-DSIGMOND_MINUIT2_INCLUDE_DIR={lib_config["include_dir"]}')
+            if lib_config.get('library_dir'):
+                args.append(f'-DSIGMOND_MINUIT2_LIBRARY_DIR={lib_config["library_dir"]}')
         
         if self.config['build']['enable_grace'] and 'grace' in self.config['libraries']:
             lib_config = self.config['libraries']['grace']
-            if lib_config.get('include_dirs'):
-                inc_dirs = ';'.join(lib_config['include_dirs'])
-                args.append(f'-DSIGMOND_GRACE_INCLUDE_DIR={inc_dirs}')
-            if lib_config.get('library_dirs'):
-                lib_dirs = ';'.join(lib_config['library_dirs'])
-                args.append(f'-DSIGMOND_GRACE_LIBRARY_DIR={lib_dirs}')
+            if lib_config.get('include_dir'):
+                args.append(f'-DSIGMOND_GRACE_INCLUDE_DIR={lib_config["include_dir"]}')
+            if lib_config.get('library_dir'):
+                args.append(f'-DSIGMOND_GRACE_LIBRARY_DIR={lib_config["library_dir"]}')
         
         # Special handling for Accelerate framework (macOS only)
         if 'accelerate' in self.config['libraries']:
             accel_config = self.config['libraries']['accelerate']
-            if accel_config.get('framework_dirs'):
-                framework_dirs = ';'.join(accel_config['framework_dirs'])
-                args.append(f'-DSIGMOND_ACCELERATE_FRAMEWORK_DIR={framework_dirs}')
+            if accel_config.get('framework_dir'):
+                args.append(f'-DSIGMOND_ACCELERATE_FRAMEWORK_DIR={accel_config["framework_dir"]}')
         
         return args
     
@@ -388,15 +387,15 @@ library_path = ""          # Path to BLAS .so/dylib file (e.g. libopenblas.so)
 library_path = ""          # Path to LAPACK .so/dylib file (e.g. libopenblas.so)
 
 [libraries.accelerate]
-framework_dirs = []
+framework_dir = ""
 
 [libraries.minuit2]
-include_dirs = []
-library_dirs = []
+include_dir = ""            # e.g. /usr/include
+library_dir = ""            # e.g. /usr/lib
 
 [libraries.grace]
-include_dirs = []
-library_dirs = []
+include_dir = ""
+library_dir = ""
 
 [compiler]
 cxx_flags = []

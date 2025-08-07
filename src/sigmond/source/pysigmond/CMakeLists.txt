@@ -1,2 +1,2 @@
-add_library(sigmond SHARED pysigmond.cc)
+add_library(sigmond STATIC pysigmond.cc)
 target_compile_definitions(sigmond PUBLIC sigmond)

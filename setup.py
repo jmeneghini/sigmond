@@ -229,12 +229,6 @@ class CMakeBuild(build_ext_orig):
             raise RuntimeError(f"CMake install failed with exit code {e.returncode}")
 
 setup(
-    name='sigmond',
-    version="0.0.0.dev1",
-    author="Sarah Skinner",
-    author_email="sarakski@andrew.cmu.edu",
-    description='A python interface and query toolfor the Sigmond analysis software.',
-    long_description='',
     packages=['sigmond'],
     package_dir={"": "src"},
     classifiers=[
@@ -242,7 +236,6 @@ setup(
         "Operating System :: POSIX :: Linux"
     ],
     ext_modules=[CMakeExtension('sigmond',['src/sigmond/source/pysigmond/pysigmond.cc'])],
-    python_requires='>=3.6',
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
 )

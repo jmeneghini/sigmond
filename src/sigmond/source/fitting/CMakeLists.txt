@@ -1,4 +1,4 @@
-add_library(fitting SHARED chisq_anisotropy.cc 
+add_library(fitting STATIC chisq_anisotropy.cc 
    chisq_base.cc 
    chisq_disp.cc     
    chisq_fit.cc           

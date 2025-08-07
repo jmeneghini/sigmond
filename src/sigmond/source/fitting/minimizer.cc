@@ -317,7 +317,16 @@ bool ChiSquareMinimizer::find_minimum_minuit2(const vector<double>& starting_par
                                 // lower level means faster, higher means
                                 // more reliable minimization
 
- ROOT::Minuit2::MnMinimize M(*m_minuit2, starting_params, unc, strategylevel); 
+ // New Minuit2 interface
+ ROOT::Minuit2::MnUserParameters upar;
+ for (uint p=0;p<nparam;++p){
+    upar.Add("p"+std::to_string(p), starting_params[p], unc[p]);
+ }
+ 
+ ROOT::Minuit2::MnUserParameterState state(upar);
+ ROOT::Minuit2::MnStrategy strat(static_cast<int>(strategylevel));
+    
+ ROOT::Minuit2::MnMinimize M(*m_minuit2, state, strat);
 
        //  Now do the actual minimization!!
  ROOT::Minuit2::FunctionMinimum csmin = M(m_info.m_max_its,m_info.m_chisq_reltol);
@@ -357,7 +366,16 @@ bool ChiSquareMinimizer::find_minimum_minuit2ng(const vector<double>& starting_p
                                 // lower level means faster, higher means
                                 // more reliable minimization
 
- ROOT::Minuit2::MnMinimize M(*m_minuit2ng, starting_params, unc, strategylevel); 
+ // New Minuit2 interface
+ ROOT::Minuit2::MnUserParameters upar;
+ for (uint p=0;p<nparam;++p){
+    upar.Add("p"+std::to_string(p), starting_params[p], unc[p]);
+ }
+ 
+ ROOT::Minuit2::MnUserParameterState state(upar);
+ ROOT::Minuit2::MnStrategy strat(static_cast<int>(strategylevel));
+    
+ ROOT::Minuit2::MnMinimize M(*m_minuit2ng, state, strat);
 
        //  Now do the actual minimization!!
  ROOT::Minuit2::FunctionMinimum csmin = M(m_info.m_max_its,m_info.m_chisq_reltol);

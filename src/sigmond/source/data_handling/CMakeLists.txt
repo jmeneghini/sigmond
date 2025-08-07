@@ -1,5 +1,5 @@
 
-add_library(data_handling SHARED bins_info.cc 
+add_library(data_handling STATIC bins_info.cc 
 	byte_handler.cc 
 	corr_data_handler.cc 
 	ensemble_info.cc 

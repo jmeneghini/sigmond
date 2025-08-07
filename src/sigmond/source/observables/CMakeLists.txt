@@ -1,4 +1,4 @@
-add_library(observables SHARED basic_laph_operator_info.cc 
+add_library(observables STATIC basic_laph_operator_info.cc 
    diag_corr_set.cc 
    correlator_info.cc 
    correlator_matrix_info.cc 
