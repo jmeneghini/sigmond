@@ -18,21 +18,21 @@ from setuptools.command.build_ext import build_ext as build_ext_orig
 def load_configuration():
     """Load Sigmond configuration with robust error handling."""
     try:
-        # Add current directory to path to ensure config_reader can be found
+        # Add current directory to path to ensure configure can be found
         current_dir = os.path.dirname(os.path.abspath(__file__))
         if current_dir not in sys.path:
             sys.path.insert(0, current_dir)
-        from config_reader import load_sigmond_config
+        from configure import load_sigmond_config
         return load_sigmond_config()
     except ImportError as e:
-        print(f"Warning: Could not load config_reader ({e}). Using fallback configuration.")
+        print(f"Warning: Could not load configure ({e}). Using fallback configuration.")
         return create_fallback_config()
     except Exception as e:
         print(f"Error loading configuration: {e}. Using fallback configuration.")
         return create_fallback_config()
 
 def create_fallback_config():
-    """Create fallback configuration when config_reader is unavailable."""
+    """Create fallback configuration when configure is unavailable."""
     class FallbackConfig:
         def should_skip_query(self): 
             return os.environ.get('SIGMOND_SKIP_QUERY', '').lower() in ('1', 'true', 'yes')
@@ -74,7 +74,7 @@ class CMakeExtension(Extension):
     def __init__(self, name, sources=[]):
         Extension.__init__(self, name, sources=[])
         print(name, sources)
-        self.sourcedir = os.path.join(os.path.abspath(''), "src", "sigmond", "source" )
+        self.sourcedir = os.path.join(os.path.abspath(''), "src", "sigmond", "cpp" )
 
 class CMakeBuild(build_ext_orig):
     """Enhanced CMake build system with cross-platform support."""
@@ -94,7 +94,7 @@ class CMakeBuild(build_ext_orig):
             raise RuntimeError(
                 f"CMake must be installed to build Sigmond extensions.\n"
                 f"Error: {e}\n"
-                f"Please install CMake 3.12+ and ensure it's in your PATH."
+                f"Please install CMake 3.13+ and ensure it's in your PATH."
             )
 
     def build_extension(self, ext):
@@ -159,8 +159,10 @@ class CMakeBuild(build_ext_orig):
         # Add configuration-specific args
         cmake_args.extend(config.get_cmake_args())
         
+        # get root dir (location of this file)
+        root_dir = os.path.abspath(os.path.dirname(__file__))
         # Build C++ flags
-        cxx_flags = ['-DDEFAULTENSFILE=\'\"\"\'', '-std=c++17']
+        cxx_flags = [f'-DDEFAULTENSFILE=\\"{root_dir}/ensembles.xml\\"', '-std=c++17']
         if cfg == 'Release':
             cxx_flags.extend(['-O3', '-w'])  # -w suppresses all warnings
         else:
@@ -235,7 +237,7 @@ setup(
         "Programming Language :: Python :: 3",
         "Operating System :: POSIX :: Linux"
     ],
-    ext_modules=[CMakeExtension('sigmond',['src/sigmond/source/pysigmond/pysigmond.cc'])],
+    ext_modules=[CMakeExtension('sigmond',['src/sigmond/cpp/pybind/pysigmond.cc'])],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
 )

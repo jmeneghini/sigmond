@@ -1,0 +1,93 @@
+<SigMonD>
+   <Initialize>
+      <ProjectName>Lambda1405</ProjectName>
+      <LogFile>PSQ0_G1u_rotation_log.xml</LogFile>
+      <!-- The default ensembles file contains the D200 info, so no need to respecify -->
+      <!-- <KnownEnsemblesFile>ensembles.xml</KnownEnsemblesFile> -->
+      <MCBinsInfo>
+         <!-- Ensemble specific. Use sigmond_query -i F_I0_Sm1.h5bins[/PSQ0_G1u] -->
+         <MCEnsembleInfo>cls21_s64_t128_D200</MCEnsembleInfo>
+         <NumberOfMeasurements>2000</NumberOfMeasurements>
+         <!-- Rebinning -->
+         <NumberOfBins>100</NumberOfBins>
+         <TweakEnsemble>
+            <Rebin>20</Rebin>
+         </TweakEnsemble>
+      </MCBinsInfo>
+      <MCSamplingInfo>
+         <Bootstrapper>
+            <NumberResamplings>2000</NumberResamplings>
+            <Seed>3103</Seed>
+            <BootSkip>0</BootSkip>
+         </Bootstrapper>
+         <Precompute/>
+      </MCSamplingInfo>
+      <MCObservables>
+         <BinData>
+            <!-- Notice the required root tag -->
+            <FileName>F_I0_Sm1.h5bins[/isosinglet_Sm1_G1u_P0]</FileName>
+         </BinData>
+      </MCObservables>
+   </Initialize>
+   <TaskSequence>
+      <Task>
+         <Action>DoCorrMatrixRotation</Action>
+         <MinTimeSep>2</MinTimeSep>
+         <MaxTimeSep>25</MaxTimeSep>
+         <RotateMode>samplings_all</RotateMode>
+         <Type>SinglePivot</Type>
+         <SinglePivotInitiate>
+            <!-- This is the custom name given to the resulting rotated correlators, with the index (at end) incremented-->
+            <RotatedCorrelator>
+               <GIOperatorString>isosinglet S=-1 P=(0,0,0) G1u ROT 0</GIOperatorString>
+            </RotatedCorrelator>
+            <CorrelatorMatrixInfo>
+               <HermitianMatrix/>
+               <!-- All of these strings are referencing data contained in the h5bins file. -->
+               <!-- To see all keys: sigmond_query -k F_I0_Sm1.h5bins[/isosinglet_Sm1_G1u_P0] -->
+               <!-- Since the data file contains each element of the correlator matrix, one for each time slice, -->
+               <!-- we just want the unique GIOperatorString tags. We can get this in bash with: -->
+               <!-- sigmond_query -k F_I0_Sm1.h5bins[/isosinglet_Sm1_G1u_P0] | grep -o 'GI{[^}]*}' | sort -u -->
+               <GIOperatorString>isosinglet S=-1 P=(0,0,0) G1u k[0_A1u_SS0]N[0_G1g_SS0] 0</GIOperatorString>
+               <GIOperatorString>isosinglet S=-1 P=(0,0,0) G1u k[1_A2_SS1]N[1_G1_SS0] 0</GIOperatorString>
+               <GIOperatorString>isosinglet S=-1 P=(0,0,0) G1u L[SS0] 0</GIOperatorString>
+               <GIOperatorString>isosinglet S=-1 P=(0,0,0) G1u L[SS1] 0</GIOperatorString>
+               <GIOperatorString>isosinglet S=-1 P=(0,0,0) G1u L[SS2] 0</GIOperatorString>
+               <GIOperatorString>isosinglet S=-1 P=(0,0,0) G1u L[SS3] 0</GIOperatorString>
+               <GIOperatorString>isosinglet S=-1 P=(0,0,0) G1u P[0_A1umSS0]S[0_G1gSS0] 0</GIOperatorString>
+               <GIOperatorString>isosinglet S=-1 P=(0,0,0) G1u P[1_A2m_SS1]S[1_G1_SS0] 0</GIOperatorString>
+            </CorrelatorMatrixInfo>
+            <NormTime>4</NormTime>
+            <MetricTime>4</MetricTime>
+            <DiagonalizeTime>16</DiagonalizeTime>
+            <MinimumInverseConditionNumber>0.006666666666666667</MinimumInverseConditionNumber>
+            <WritePivotToFile>
+               <PivotFileName>rotate_corrs_pivot_info-Nbin20-SP-4tN-4t0-16tD_B-samplings.hdf5[/isosinglet_Sm1_G1u_P0]</PivotFileName>
+               <Overwrite/>
+            </WritePivotToFile>
+         </SinglePivotInitiate>
+         <WriteRotatedCorrToFile>
+            <RotatedCorrFileName>rotate_corrs-Nbin20-SP-4tN-4t0-16tD_B-samplings.hdf5[/isosinglet_Sm1_G1u_P0]</RotatedCorrFileName>
+            <WriteMode>overwrite</WriteMode>
+         </WriteRotatedCorrToFile>
+      </Task>
+      <Task>
+         <!-- Lets plot the effective energies of the diagonal corrs -->
+         <Action>DoPlot</Action>
+         <Type>EffectiveEnergies</Type>
+         <TimeStep>3</TimeStep>
+         <Arg>Re</Arg>
+         <DiagonalCorrelatorSet>
+            <RotatedSequential>
+               <!-- Using the (now in memory) rotated correlators from the previous task -->
+               <GIOperatorString>isosinglet S=-1 P=(0,0,0) G1u ROT</GIOperatorString>
+               <NumberOfLevels>8</NumberOfLevels>
+            </RotatedSequential>
+         </DiagonalCorrelatorSet>
+         <SamplingMode>Bootstrap</SamplingMode>
+         <PlotFileStub>rotate_corrs_eff_energy-Nbin20-SP-4tN-4t0-16tD_B-samplings</PlotFileStub>
+         <!-- Use xmgrace rotate_corrs_eff_energy-Nbin20-SP-4tN-4t0-16tD_B-samplings_<N>.agr to view a single plot -->
+         <!-- or xmgrace rotate_corrs_eff_energy-Nbin20-SP-4tN-4t0-16tD_B-samplings_*.agr to combine -->
+      </Task>
+   </TaskSequence>
+</SigMonD>

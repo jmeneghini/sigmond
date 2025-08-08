@@ -1,7 +1,7 @@
 [build-system]
 requires = [
     "setuptools>=42",
-    "cmake>=3.12",
+    "cmake>=3.13",
     "pybind11",
 ]
 build-backend = "setuptools.build_meta"
@@ -13,7 +13,8 @@ dependencies = [
 ]
 name = "sigmond"
 version = "0.0.0.dev1"
-license = "MIT"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
 dynamic = ["classifiers"]
 
 description = "Python package for analyzing correlation functions computed from lattice QCD."

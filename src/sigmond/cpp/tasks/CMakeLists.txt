@@ -1,0 +1,33 @@
+add_library(tasks STATIC 
+   pivoter.h
+   scalar_defs.cc
+   single_pivot.cc       
+   rolling_pivot.cc       
+   # stopwatch.cc          
+   task_handler.cc       
+   task_check.cc         
+   task_fit.cc           
+   task_get_from_pivot.cc 
+   task_obsfunc.cc       
+   task_plot.cc          
+   task_print.cc 
+   task_rebin.cc        
+   task_rotate_corrs.cc  
+   task_utils.cc
+   xml_handler.cc)
+
+# Link to other component libraries that tasks depends on
+target_link_libraries(tasks PUBLIC 
+   analysis data_handling fitting observables plotting)
+
+target_precompile_headers( tasks PUBLIC args_handler.h 
+   log_helper.h     
+   multi_compare.h  
+   scalar_defs.h    
+   # pivoter.h   
+   single_pivot.h   
+   rolling_pivot.h   
+   # stopwatch.h      
+   task_handler.h   
+   task_utils.h     
+   xml_handler.h)

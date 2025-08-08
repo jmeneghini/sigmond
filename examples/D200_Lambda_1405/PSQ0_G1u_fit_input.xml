@@ -1,0 +1,80 @@
+<SigMonD>
+   <Initialize>
+      <ProjectName>Lambda1405</ProjectName>
+      <LogFile>PSQ0_G1u_fit_log.xml</LogFile>
+      <MCBinsInfo>
+         <!-- Must specify everytime, even if data is now already rebinned -->
+         <MCEnsembleInfo>cls21_s64_t128_D200</MCEnsembleInfo>
+         <NumberOfMeasurements>2000</NumberOfMeasurements>
+         <NumberOfBins>100</NumberOfBins>
+         <TweakEnsemble>
+            <Rebin>20</Rebin>
+         </TweakEnsemble>
+      </MCBinsInfo>
+      <MCSamplingInfo>
+         <Bootstrapper>
+            <NumberResamplings>2000</NumberResamplings>
+            <Seed>3103</Seed>
+            <BootSkip>0</BootSkip>
+         </Bootstrapper>
+         <Precompute/>
+      </MCSamplingInfo>
+      <MCObservables>
+         <!-- The diagonal corrs are now out of memory; let's load them back in. -->
+         <!-- Note: The resulting data is SamplingData, not BinData-->
+         <SamplingData>
+            <FileName>
+               rotate_corrs-Nbin20-SP-4tN-4t0-16tD_B-samplings.hdf5[/isosinglet_Sm1_G1u_P0]
+            </FileName>
+         </SamplingData>
+      </MCObservables>
+   </Initialize>
+   <TaskSequence>
+      <Task>
+         <Action>DoFit</Action>
+         <Type>TemporalCorrelatorTminVary</Type>
+         <MinimizerInfo>   <!-- Optional -->
+            <Method>LMDer</Method>
+            <ParameterRelTol>1e-06</ParameterRelTol>
+            <ChiSquareRelTol>0.0001</ChiSquareRelTol>
+            <MaximumIterations>1024</MaximumIterations>
+            <Verbosity>Low</Verbosity>
+         </MinimizerInfo>
+         <SamplingMode>Bootstrap</SamplingMode>
+         <TemporalCorrelatorTminVaryFit>
+            <GIOperatorString>isosinglet S=-1 P=(0,0,0) G1u ROT 0</GIOperatorString>
+            <TminFirst>5</TminFirst>
+            <TminLast>15</TminLast>
+            <Tmax>25</Tmax>
+            <Model>
+               <Type>TimeForwardTwoExponential</Type>
+               <FirstEnergy>
+                  <Name>energy-G1u-ROT0-T3-15S</Name>
+                  <IDIndex>0</IDIndex>
+               </FirstEnergy>
+               <FirstAmplitude>
+                  <Name>amp1-G1u-ROT0-T3-15S</Name>
+                  <IDIndex>0</IDIndex>
+               </FirstAmplitude>
+               <SqrtGapToSecondEnergy>
+                  <Name>gap-G1u-ROT0-T3-15S</Name>
+                  <IDIndex>0</IDIndex>
+               </SqrtGapToSecondEnergy>
+               <SecondAmplitudeRatio>
+                  <Name>amp2-G1u-ROT0-T3-15S</Name>
+                  <IDIndex>0</IDIndex>
+               </SecondAmplitudeRatio>
+            </Model>
+         </TemporalCorrelatorTminVaryFit>
+         <PlotInfo>
+            <PlotFile>PSQ0_G1u_ROT0_tmin_vary.agr</PlotFile>
+            <CorrName>isosinglet S=-1 P=(0,0,0) G1u ROT 0</CorrName>
+            <SymbolColor>red</SymbolColor> <!-- optional -->
+            <SymbolType>circle</SymbolType> <!-- optional -->
+            <MaxErrorToPlot>1.0</MaxErrorToPlot>
+            <Goodness>chisq</Goodness> <!-- or "qual" -->
+            <ShowApproach/>
+         </PlotInfo>
+      </Task>
+   </TaskSequence>
+</SigMonD>
