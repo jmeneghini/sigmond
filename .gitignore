@@ -153,3 +153,6 @@ dkms.conf
 examples/D200_Lambda_1405/*.agr
 examples/D200_Lambda_1405/*.hdf5
 examples/D200_Lambda_1405/*log.xml
+
+# Config
+sigmond.toml

@@ -21,7 +21,7 @@
       </MCSamplingInfo>
       <MCObservables>
          <!-- The diagonal corrs are now out of memory; let's load them back in. -->
-         <!-- Note: The resulting data is SamplingData, not BinData-->
+         <!-- Note: The resulting data from the rotation is SamplingData, not BinData-->
          <SamplingData>
             <FileName>
                rotate_corrs-Nbin20-SP-4tN-4t0-16tD_B-samplings.hdf5[/isosinglet_Sm1_G1u_P0]
