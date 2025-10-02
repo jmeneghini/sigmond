@@ -12,6 +12,8 @@ sigmond.toml
 *.vrb
 .tags
 
+_sigmond_cache_init.cmake
+
 # egg info
 *.egg-info/
 

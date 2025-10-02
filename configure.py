@@ -1,10 +1,13 @@
 """
 Sigmond configuration file reader.
 Handles reading TOML configuration files and environment variable overrides.
+Enhanced with KBfit-style features: CMake presets, cache generation, and improved management.
 """
 
 import os
 import sys
+import json
+import shutil
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
@@ -71,6 +74,7 @@ class SigmondConfig:
             'build': {
                 'skip_query': False,
                 'skip_batch': False,
+                'enable_testing': True,
                 'verbose': False,
                 'precision': 'double',
                 'numbers': 'complex',
@@ -79,7 +83,9 @@ class SigmondConfig:
                 'enable_grace': False,
                 'build_jobs': os.cpu_count() or 1,
                 'batch_install_dir': '',
-                'query_install_dir': ''
+                'query_install_dir': '',
+                'extra_cmake_definitions': [],
+                'default_ensembles_file': '/Users/johnmeneghini/Documents/LatticeQCD/spectrums/software/sigmond/ensembles.xml'
             },
             'libraries': {
                 'hdf5': {'root_dir': ''},
@@ -90,6 +96,8 @@ class SigmondConfig:
                 'grace': {'include_dir': '', 'library_dir': ''}
             },
             'compiler': {
+                'c_compiler': '',
+                'cxx_compiler': '',
                 'cxx_flags': []
             }
         }
@@ -103,6 +111,10 @@ class SigmondConfig:
             self.config['build']['skip_batch'] = True
         if os.environ.get('SIGMOND_VERBOSE', '').lower() in ('1', 'true', 'yes'):
             self.config['build']['verbose'] = True
+
+        # Default ensembles file override
+        if os.environ.get('DEFAULTENSFILE'):
+            self.config['build']['default_ensembles_file'] = os.environ.get('DEFAULTENSFILE')
     
     def _validate_config(self):
         """Validate configuration values and provide helpful error messages."""
@@ -175,31 +187,71 @@ class SigmondConfig:
         if self.config['build']['verbose']:
             args.append('-DSIGMOND_VERBOSE=ON') # not currently used
             args.append('-DCMAKE_FIND_DEBUG_MODE=ON')
-        
+
+        # Enable testing
+        if self.config['build']['enable_testing']:
+            args.append('-DENABLE_TESTING=ON')
+        else:
+            args.append('-DENABLE_TESTING=OFF')
+
         # Custom install directories
         if self.config['build']['batch_install_dir']:
             args.append(f'-DSIGMOND_BATCH_INSTALL_DIR={self.config["build"]["batch_install_dir"]}')
         if self.config['build']['query_install_dir']:
             args.append(f'-DSIGMOND_QUERY_INSTALL_DIR={self.config["build"]["query_install_dir"]}')
-        
+
+        # Default ensembles file
+        default_ens_file = self.config['build'].get('default_ensembles_file', '')
+        if default_ens_file:
+            args.append(f'-DDEFAULTENSFILE={default_ens_file}')
+
+        # Extra user-provided -D definitions
+        extra_defs = self.config['build'].get('extra_cmake_definitions', [])
+        if isinstance(extra_defs, dict):
+            items = extra_defs.items()
+        elif isinstance(extra_defs, list):
+            items = []
+            for entry in extra_defs:
+                if isinstance(entry, str):
+                    # Accept forms: "FOO", "FOO=BAR", "-DFOO=BAR"
+                    s = entry.strip()
+                    if s.startswith('-D'):
+                        args.append(s)
+                        continue
+                    args.append(f'-D{s}')
+                elif isinstance(entry, dict):
+                    items.extend(entry.items())
+        else:
+            items = []
+        # Process dict-style entries (key -> value)
+        for k, v in (items or []):
+            # Normalize boolean to ON/OFF, lists to semicolon list
+            if isinstance(v, bool):
+                vv = 'ON' if v else 'OFF'
+            elif isinstance(v, (list, tuple)):
+                vv = ';'.join(str(x) for x in v)
+            else:
+                vv = str(v)
+            args.append(f'-D{k}={vv}')
+
         # HDF5 root path (if specified)
         if 'hdf5' in self.config['libraries']:
             hdf5_config = self.config['libraries']['hdf5']
             if hdf5_config.get('root_dir'):
                 args.append(f'-DHDF5_DIR={hdf5_config["root_dir"]}')
-                
+
         # BLAS manual library paths
         if 'blas' in self.config['libraries']:
             blas_config = self.config['libraries']['blas']
             if blas_config.get('library_path'):
                 args.append(f'-DBLAS_LIBRARIES={blas_config["library_path"]}')
-        
+
         # LAPACK manual library paths
         if 'lapack' in self.config['libraries']:
             lib_config = self.config['libraries']['lapack']
             if lib_config.get('library_path'):
                 args.append(f'-DLAPACK_LIBRARIES={lib_config["library_path"]}')
-        
+
         # Optional libraries (only if enabled)
         if self.config['build']['enable_minuit'] and 'minuit2' in self.config['libraries']:
             lib_config = self.config['libraries']['minuit2']
@@ -207,20 +259,28 @@ class SigmondConfig:
                 args.append(f'-DSIGMOND_MINUIT2_INCLUDE_DIR={lib_config["include_dir"]}')
             if lib_config.get('library_dir'):
                 args.append(f'-DSIGMOND_MINUIT2_LIBRARY_DIR={lib_config["library_dir"]}')
-        
+
         if self.config['build']['enable_grace'] and 'grace' in self.config['libraries']:
             lib_config = self.config['libraries']['grace']
             if lib_config.get('include_dir'):
                 args.append(f'-DSIGMOND_GRACE_INCLUDE_DIR={lib_config["include_dir"]}')
             if lib_config.get('library_dir'):
                 args.append(f'-DSIGMOND_GRACE_LIBRARY_DIR={lib_config["library_dir"]}')
-        
+
         # Special handling for Accelerate framework (macOS only)
         if 'accelerate' in self.config['libraries']:
             accel_config = self.config['libraries']['accelerate']
             if accel_config.get('framework_dir'):
                 args.append(f'-DSIGMOND_ACCELERATE_FRAMEWORK_DIR={accel_config["framework_dir"]}')
-        
+
+        # C/C++ compilers (KBfit-style)
+        if 'compiler' in self.config:
+            compiler_config = self.config['compiler']
+            if compiler_config.get('c_compiler'):
+                args.append(f'-DCMAKE_C_COMPILER={compiler_config["c_compiler"]}')
+            if compiler_config.get('cxx_compiler'):
+                args.append(f'-DCMAKE_CXX_COMPILER={compiler_config["cxx_compiler"]}')
+
         return args
     
     def get_compiler_definitions(self) -> List[str]:
@@ -266,21 +326,199 @@ class SigmondConfig:
             flags.extend(self.config['compiler']['cxx_flags'])
         
         return flags
-    
+
+    def generate_cmake_presets(self, output_path: str = "src/sigmond/cpp/CMakeUserPresets.json", clear_cache: bool = False):
+        """Generate CMakePresets.json from configuration."""
+        # Detect conda environment
+        conda_prefix = os.environ.get('CONDA_PREFIX', '')
+        if not conda_prefix:
+            print("Warning: CONDA_PREFIX not detected. Preset may not work correctly.")
+
+        # Build cache variables from configuration
+        cache_vars = {
+            "CMAKE_BUILD_TYPE": "Release",
+            "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+            "CMAKE_CXX_STANDARD": "17",
+            "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+            "CMAKE_CXX_EXTENSIONS": "OFF"
+        }
+
+        # Add conda paths if available
+        if conda_prefix:
+            cache_vars.update({
+                "CMAKE_PREFIX_PATH": conda_prefix,
+                "CMAKE_BUILD_RPATH": f"{conda_prefix}/lib",
+                "HDF5_ROOT": conda_prefix,
+                "PYTHON_EXECUTABLE": f"{conda_prefix}/bin/python"
+            })
+
+        # Add configuration-specific CMake variables
+        cmake_args = self.get_cmake_args()
+        for arg in cmake_args:
+            if arg.startswith('-D') and '=' in arg:
+                key, value = arg[2:].split('=', 1)
+                cache_vars[key] = value
+            elif arg.startswith('-D'):
+                key = arg[2:]
+                cache_vars[key] = "ON"
+
+        # Handle compiler paths
+        if clear_cache:
+            # Explicitly unset compiler variables to force CMake auto-detection
+            cache_vars.update({
+                'CMAKE_C_COMPILER': '',
+                'CMAKE_CXX_COMPILER': ''
+            })
+        else:
+            # Add compiler paths from config (only if non-empty and exist on system)
+            c_compiler = self.config['compiler']['c_compiler']
+            if c_compiler and c_compiler.strip() and os.path.exists(c_compiler):
+                cache_vars['CMAKE_C_COMPILER'] = c_compiler
+
+            cxx_compiler = self.config['compiler']['cxx_compiler']
+            if cxx_compiler and cxx_compiler.strip() and os.path.exists(cxx_compiler):
+                cache_vars['CMAKE_CXX_COMPILER'] = cxx_compiler
+
+        # Create preset structure
+        presets = {
+            "version": 5,
+            "configurePresets": [
+                {
+                    "name": "sigmond-auto-release",
+                    "displayName": "Sigmond Auto Release",
+                    "generator": "Unix Makefiles",
+                    "binaryDir": "${sourceDir}/../../../build",
+                    "cacheVariables": cache_vars.copy()
+                },
+                {
+                    "name": "sigmond-auto-debug",
+                    "displayName": "Sigmond Auto Debug",
+                    "inherits": "sigmond-auto-release",
+                    "binaryDir": "${sourceDir}/../../../build-debug",
+                    "cacheVariables": {
+                        "CMAKE_BUILD_TYPE": "Debug"
+                    }
+                }
+            ],
+            "buildPresets": [
+                {
+                    "name": "build-auto-release",
+                    "configurePreset": "sigmond-auto-release",
+                    "verbose": self.is_verbose(),
+                    "jobs": self.get_build_jobs()
+                },
+                {
+                    "name": "build-auto-debug",
+                    "configurePreset": "sigmond-auto-debug",
+                    "verbose": self.is_verbose(),
+                    "jobs": self.get_build_jobs()
+                }
+            ]
+        }
+
+        # Write presets file
+        output_file = Path(output_path)
+        try:
+            with open(output_file, 'w') as f:
+                json.dump(presets, f, indent=2)
+            print(f"Generated CMake presets: {output_file}")
+            return True
+        except Exception as e:
+            print(f"Error generating presets: {e}")
+            return False
+
+    def write_cache(self, output_path: str = str(Path(__file__).parent / "_sigmond_cache_init.cmake"),
+                    clear_cache: bool = False) -> bool:
+        """Emit a CMake init-cache file mirroring generate_cmake_presets."""
+        conda_prefix = os.environ.get('CONDA_PREFIX', '')
+
+        # 1) base cache vars (same as presets)
+        cache_vars = {
+            "CMAKE_BUILD_TYPE": "Release",
+            "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+            "CMAKE_CXX_STANDARD": "17",
+            "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+            "CMAKE_CXX_EXTENSIONS": "OFF",
+        }
+
+        # 2) conda-derived suggestions
+        if conda_prefix:
+            cache_vars.update({
+                "CMAKE_PREFIX_PATH": conda_prefix,
+                "CMAKE_BUILD_RPATH": f"{conda_prefix}/lib",
+                "HDF5_ROOT": conda_prefix,
+                "PYTHON_EXECUTABLE": f"{conda_prefix}/bin/python",
+            })
+        else:
+            print("Warning: CONDA_PREFIX not detected. Cache may be suboptimal.")
+
+        # 3) fold in your -D flags from sigmond.toml/env
+        for arg in self.get_cmake_args():
+            if arg.startswith('-D'):
+                body = arg[2:]
+                if '=' in body:
+                    k, v = body.split('=', 1)
+                    cache_vars[k] = v
+                else:
+                    cache_vars[body] = "ON"
+
+        # 4) compilers handling
+        if clear_cache:
+            cache_vars.update({
+                'CMAKE_C_COMPILER': '',
+                'CMAKE_CXX_COMPILER': ''
+            })
+        else:
+            c = self.config['compiler'].get('c_compiler', '')
+            if c and os.path.exists(c):
+                cache_vars['CMAKE_C_COMPILER'] = c
+            cxx = self.config['compiler'].get('cxx_compiler', '')
+            if cxx and os.path.exists(cxx):
+                cache_vars['CMAKE_CXX_COMPILER'] = cxx
+
+        # 5) render as CMake cache init
+        def _ctype(k: str, v: str) -> str:
+            vv = v.upper()
+            if vv in ("ON", "OFF", "TRUE", "FALSE"):
+                return "BOOL"
+            if k.endswith(("_COMPILER",)) or k in ("PYTHON_EXECUTABLE",):
+                return "FILEPATH"
+            if k.endswith(("_DIR", "_ROOT", "_PREFIX_PATH")) or k == "CMAKE_PREFIX_PATH":
+                return "PATH"
+            return "STRING"
+
+        def _q(s: str) -> str:
+            return s.replace('\\', '/').replace('"', '\\"')
+
+        lines = []
+        for k, v in cache_vars.items():
+            typ = _ctype(k, str(v))
+            lines.append(f'set({k} "{_q(str(v))}" CACHE {typ} "")')
+
+        try:
+            p = Path(output_path)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text("\n".join(lines) + "\n")
+            print(f"Wrote CMake init cache: {p}")
+            return True
+        except Exception as e:
+            print(f"Error writing cache: {e}")
+            return False
+
     def _get_enabled_optional_libraries(self) -> List[str]:
         """Determine which optional libraries are enabled."""
         enabled = []
-        
+
         # Minuit2 if enabled
         if self.config['build']['enable_minuit']:
             enabled.append('minuit2')
-        
+
         # Grace if enabled
         if self.config['build']['enable_grace']:
             enabled.append('grace')
-        
+
         return enabled
-    
+
     def get_env_dict(self) -> Dict[str, str]:
         """Get environment variables to set for the build."""
         env = {}
@@ -327,6 +565,14 @@ class SigmondConfig:
     def get_query_install_dir(self) -> str:
         """Get custom install directory for sigmond_query."""
         return self.config['build']['query_install_dir']
+
+    def is_testing_enabled(self) -> bool:
+        """Check if testing is enabled."""
+        return self.config['build']['enable_testing']
+
+    def get_default_ensembles_file(self) -> str:
+        """Get the default ensembles file path."""
+        return self.config['build']['default_ensembles_file']
 
 
 # Convenience function for setup.py
@@ -470,45 +716,76 @@ def validate_config(config_path: str = None):
 def main():
     """CLI main function."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(
         description="Sigmond Configuration Tool",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  %(prog)s show                           # Show current configuration
-  %(prog)s create                         # Create basic config file
-  %(prog)s validate                       # Validate current config
-"""
     )
-    
+
     subparsers = parser.add_subparsers(dest='command', help='Commands')
-    
+
     # Show command
     subparsers.add_parser('show', help='Show current configuration')
-    
+
     # Create command
     create_parser = subparsers.add_parser('create', help='Create new sigmond.toml configuration file')
-    
-    # Validate command  
+
+    # Generate-presets command
+    gen_parser = subparsers.add_parser('generate-presets', help='Generate CMakeUserPresets.json from config')
+    gen_parser.add_argument('-o', '--output', default='src/sigmond/cpp/CMakeUserPresets.json',
+                            help='Output file path (default: src/sigmond/cpp/CMakeUserPresets.json)')
+    gen_parser.add_argument('--clear-cache', action='store_true',
+                            help='Clear compiler cache variables to force CMake auto-detection')
+
+    # Validate command
     validate_parser = subparsers.add_parser('validate', help='Validate configuration file')
-    
+
+    # CMake args command
+    cmake_args_p = subparsers.add_parser('cmake-args', help='Print -D CMake args derived from sigmond.toml/env')
+    cmake_args_p.add_argument('--as-env', action='store_true', help='Emit: export CMAKE_ARGS="..."')
+
+    # Output cache files
+    wc = subparsers.add_parser('write-cache', help='Write CMake init cache from sigmond.toml/env')
+    wc.add_argument('-o', '--output', default=str(Path(__file__).parent / "_sigmond_cache_init.cmake"))
+    wc.add_argument('--clear-cache', action='store_true')
+
     args = parser.parse_args()
-    
+
     if not args.command:
         parser.print_help()
         return 1
-    
+
     if args.command == 'show':
         show_config()
     elif args.command == 'create':
         create_config(output_path='sigmond.toml', template=False)
+    elif args.command == 'generate-presets':
+        try:
+            config = load_sigmond_config()
+            success = config.generate_cmake_presets(args.output, args.clear_cache)
+            return 0 if success else 1
+        except Exception as e:
+            print(f"Error generating presets: {e}")
+            return 1
     elif args.command == 'validate':
         if validate_config('sigmond.toml'):
             return 0
         else:
             return 1
-    
+    elif args.command == 'cmake-args':
+        cfg = load_sigmond_config()
+        vals = cfg.get_cmake_args()
+        s = ' '.join(vals)
+        if args.as_env:
+            print(f'export CMAKE_ARGS="{s}"')
+        else:
+            print(s)
+        return 0
+    elif args.command == 'write-cache':
+        cfg = load_sigmond_config()
+        ok = cfg.write_cache(args.output, args.clear_cache)
+        return 0 if ok else 1
+
     return 0
 
 
