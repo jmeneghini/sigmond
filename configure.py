@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Sigmond configuration file reader.
 Handles reading TOML configuration files and environment variable overrides.
@@ -603,9 +604,7 @@ def create_config(output_path: str, template: bool = False):
             return
     else:
         # Create minimal config
-        import os
-        cpu_count = os.cpu_count() or 1
-        content = f"""# Sigmond Configuration
+        content = """# Sigmond Configuration
 [build]
 skip_query = false
 skip_batch = false
@@ -614,10 +613,13 @@ numbers = "complex"
 default_file_format = "hdf5"
 enable_minuit = false
 enable_grace = false
+enable_testing = true
 verbose = false
 build_jobs = 0             # Number of parallel build jobs (0 = auto-detect)
 batch_install_dir = ""     # Custom install directory for sigmond_batch (empty = default bin/)
 query_install_dir = ""     # Custom install directory for sigmond_query (empty = default bin/)
+extra_cmake_definitions = [] # Additional -D flags passed to CMake
+default_ensembles_file = "" # Path to ensembles XML file for DEFAULTENSFILE
 
 [libraries]
 # Manual library paths (only specify if auto-detection fails)
@@ -644,6 +646,8 @@ include_dir = ""
 library_dir = ""
 
 [compiler]
+c_compiler = ""
+cxx_compiler = ""
 cxx_flags = []
 """
     

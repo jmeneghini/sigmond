@@ -115,12 +115,12 @@ for use of the `sigmond` Python interface, and to try yourself!
 
 View current configuration:
 ```bash
-python configure.py show
+./configure.py show
 ```
 
 Validate configuration:
 ```bash
-python configure.py validate
+./configure.py validate
 ```
 
 ## Input Files
