@@ -1,31 +1,29 @@
 [build-system]
-requires = [
-    "setuptools>=42",
-    "cmake>=3.13",
-    "pybind11",
-]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core>=0.10", "pybind11>=2.12"]
+build-backend = "scikit_build_core.build"
 
 [project]
-dependencies = [
-	"pybind11",
-	"tomli; python_version<'3.11'",
-]
 name = "sigmond"
 version = "0.0.0.dev1"
+requires-python = ">=3.9"
+description = "Python package for analyzing correlation functions computed from lattice QCD."
 license = "GPL-3.0-only"
 license-files = ["LICENSE"]
-dynamic = ["classifiers"]
-
-description = "Python package for analyzing correlation functions computed from lattice QCD."
 authors = [
-    {name = "Colin Morningstar",email="cmorning@andrer.cmu.edu"}, 
+    {name = "Colin Morningstar", email="cmorning@andrew.cmu.edu"},
     {name = "Andrew Hanlon", email="ahanlon@bnl.gov"},
     {name = "Sarah Skinner", email="sarakski@andrew.cmu.edu"},
+    {name = "John Meneghini", email="jmeneghi@andrew.cmu.edu"}
 ]
 maintainers = [
-    {name = "Sarah Skinner", email="sarakski@andrew.cmu.edu"},
+    {name = "John Meneghini", email="jmeneghi@andrew.cmu.edu"},
 ]
-requires-python = ">=3.9"
+dependencies = [
+    "pybind11",
+    "tomli; python_version<'3.11'",
+    "numpy",
+]
 readme = "README.md"
 
+[tool.scikit-build]
+wheel.packages = ["src/sigmond"]

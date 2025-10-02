@@ -1,24 +1,39 @@
 # Sigmond Configuration
 [build]
+# Sigmond-specific executable controls
 skip_query = false
 skip_batch = false
-precision = "double"
-numbers = "complex"
-default_file_format = "hdf5"
-enable_minuit = false
-enable_grace = true
+
+# Enhanced build controls
+enable_testing = true
 verbose = false
 build_jobs = 0             # Number of parallel build jobs (0 = auto-detect)
-batch_install_dir = "/home/john/miniconda3/envs/spectrum/bin"     # Custom install directory for sigmond_batch (empty = default bin/)
-query_install_dir = "/home/john/miniconda3/envs/spectrum/bin"     # Custom install directory for sigmond_query (empty = default bin/)
+
+# Sigmond-specific precision controls
+precision = "double"       # "double" or "single"
+numbers = "complex"        # "complex" or "real"
+default_file_format = "hdf5"  # "hdf5" or "fstream"
+
+# Optional library support
+enable_minuit = false
+enable_grace = true
+
+# Install directories
+batch_install_dir = ""     # Custom install directory for sigmond_batch (empty = default bin/)
+query_install_dir = ""     # Custom install directory for sigmond_query (empty = default bin/)
+
+# KBfit-style extra definitions support
+extra_cmake_definitions = []
+
+# Default ensembles XML file path
+default_ensembles_file = "/Users/johnmeneghini/Documents/LatticeQCD/spectrums/software/sigmond/ensembles.xml"
 
 [libraries]
-# Manual library paths (only specify if auto-detection fails)
+# Enhanced library management (manual library paths - only specify if auto-detection fails)
 
 [libraries.hdf5]
-root_dir = ""              # Directory containing /include and /lib subdirectories
-                           # with HDF5 headers and libraries
-                    
+root_dir = "/opt/homebrew/Caskroom/miniconda/base/envs/spectrum"              # Directory containing /include and /lib subdirectories
+
 [libraries.blas]
 library_path = ""          # Path to BLAS .so/dylib file (e.g. libopenblas.so)
 
@@ -26,15 +41,17 @@ library_path = ""          # Path to BLAS .so/dylib file (e.g. libopenblas.so)
 library_path = ""          # Path to LAPACK .so/dylib file (e.g. libopenblas.so)
 
 [libraries.accelerate]
-framework_dir = ""
+framework_dir = ""         # macOS Accelerate framework directory
 
 [libraries.minuit2]
-include_dir = ""            # e.g. /usr/include
-library_dir = ""            # e.g. /usr/lib
+include_dir = ""           # e.g. /usr/include
+library_dir = ""           # e.g. /usr/lib
 
 [libraries.grace]
-include_dir = "/usr/local/grace/include"
-library_dir = "/usr/local/grace/lib"
+include_dir = "/opt/homebrew/opt/grace/incldue"
+library_dir = "/opt/homebrew/opt/grace/lib"
 
 [compiler]
+c_compiler = ""            # C compiler path (e.g. /opt/homebrew/bin/clang or gcc)
+cxx_compiler = ""          # C++ compiler path (e.g. /opt/homebrew/bin/clang++ or g++)
 cxx_flags = []
