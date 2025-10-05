@@ -77,8 +77,7 @@ endif()
 
 include("${_sigmond_cache}")  # seeds cache before find_package calls
 
-# Apply compiler definitions based on configuration (KBfit-style)
-# These definitions should match what get_compiler_definitions() returns in configure.py
+# Apply compiler definitions based on CMake variables from configuration
 
 # Precision setting
 if(NOT DEFINED PRECISION OR PRECISION STREQUAL "double")
@@ -92,6 +91,15 @@ if(NOT DEFINED NUMBERS OR NUMBERS STREQUAL "complex")
     add_compile_definitions(COMPLEXNUMBERS)
 else()
     add_compile_definitions(REALNUMBERS)
+endif()
+
+# Default file format setting - only set DEFAULT_FSTREAM if explicitly requested
+# If not set, HDF5 is the default (no compile definition needed)
+if(DEFINED DEFAULT_FILE_FORMAT AND DEFAULT_FILE_FORMAT STREQUAL "fstream")
+    add_compile_definitions(DEFAULT_FSTREAM)
+    message(STATUS "Using fstream as default file format")
+else()
+    message(STATUS "Using HDF5 as default file format")
 endif()
 
 # Always enable these features for Sigmond

@@ -173,7 +173,18 @@ class SigmondConfig:
     def get_cmake_args(self) -> List[str]:
         """Generate CMake arguments from configuration."""
         args = []
-        
+
+        # Precision and numbers settings as CMake variables
+        precision = self.config['build']['precision'].lower()
+        args.append(f'-DPRECISION={precision}')
+
+        numbers = self.config['build']['numbers'].lower()
+        args.append(f'-DNUMBERS={numbers}')
+
+        # Default file format setting as CMake variable
+        file_format = self.config['build']['default_file_format'].lower()
+        args.append(f'-DDEFAULT_FILE_FORMAT={file_format}')
+
         # Build control flags
         if self.config['build']['skip_query']:
             args.append('-DSKIP_SIGMOND_QUERY=ON')
@@ -183,7 +194,7 @@ class SigmondConfig:
             args.append('-DENABLE_MINUIT=ON')
         if self.config['build']['enable_grace']:
             args.append('-DENABLE_GRACE=ON')
-            
+
         # Verbose output
         if self.config['build']['verbose']:
             args.append('-DSIGMOND_VERBOSE=ON') # not currently used
@@ -283,40 +294,6 @@ class SigmondConfig:
                 args.append(f'-DCMAKE_CXX_COMPILER={compiler_config["cxx_compiler"]}')
 
         return args
-    
-    def get_compiler_definitions(self) -> List[str]:
-        """Generate compiler definitions based on configuration."""
-        definitions = []
-        
-        # Precision setting
-        precision = self.config['build']['precision'].lower()
-        if precision == 'single':
-            definitions.append('SINGLEPRECISION')
-        else:  # default to double
-            definitions.append('DOUBLEPRECISION')
-        
-        # Number type setting  
-        numbers = self.config['build']['numbers'].lower()
-        if numbers == 'real':
-            definitions.append('REALNUMBERS')
-        else:  # default to complex
-            definitions.append('COMPLEXNUMBERS')
-        
-        # Default file format setting
-        file_format = self.config['build']['default_file_format'].lower()
-        if file_format == 'fstream':
-            definitions.append('DEFAULT_FSTREAM')
-        
-        # Always include these for current build
-        definitions.extend(['XML', 'HDF5', 'LAPACK'])
-        
-        # Optional features
-        if not self.config['build']['enable_minuit']:
-            definitions.append('NO_MINUIT')  # Remove the disable flag
-        if self.config['build']['enable_grace']:
-            definitions.append('GRACE')  # Add Grace support for plotting
-        
-        return definitions
     
     def get_extra_cxx_flags(self) -> List[str]:
         """Get additional C++ compiler flags from configuration."""
