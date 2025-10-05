@@ -82,15 +82,19 @@ include("${_sigmond_cache}")  # seeds cache before find_package calls
 # Precision setting
 if(NOT DEFINED PRECISION OR PRECISION STREQUAL "double")
     add_compile_definitions(DOUBLEPRECISION)
+    message(STATUS "Using double precision")
 else()
     add_compile_definitions(SINGLEPRECISION)
+    message(STATUS "Using single precision")
 endif()
 
 # Numbers setting
 if(NOT DEFINED NUMBERS OR NUMBERS STREQUAL "complex")
     add_compile_definitions(COMPLEXNUMBERS)
+    message(STATUS "Using complex numbers")
 else()
     add_compile_definitions(REALNUMBERS)
+    message(STATUS "Using real numbers")
 endif()
 
 # Default file format setting - only set DEFAULT_FSTREAM if explicitly requested
